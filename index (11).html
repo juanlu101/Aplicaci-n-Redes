@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Juan Luis Torralbo Muñoz">
+<title>LabRed · Simulador de redes para el aula</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔌</text></svg>">
+<style>
+:root{
+  --bg:#e9eef4; --panel:#ffffff; --ink:#15213a; --muted:#5f6b82; --line:#d7dee8; --soft:#f3f6fa;
+  --head:#14213d; --cat:#f2b705; --accent:#1f5fd6; --danger:#d42a2a; --ok:#138a43; --warn:#c96a00; --grid:#cbd4e1;
+  --wire:#3d4c68;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0e1522; --panel:#151d2c; --ink:#e4eaf4; --muted:#95a1b8; --line:#26324a; --soft:#1a2436; --grid:#223049; --wire:#8a9bb8; --accent:#5b8ff0}
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;color:var(--ink);background:var(--bg);
+  display:grid;grid-template-rows:52px minmax(0,1fr) 240px;grid-template-columns:minmax(0,1fr);overflow:hidden}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--cat);outline-offset:2px}
+
+/* Cabecera */
+header.top{background:var(--head);color:#fff;display:flex;align-items:center;gap:18px;padding:0 14px;border-bottom:3px solid var(--cat)}
+.brand{display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+.brand b{font-size:19px;letter-spacing:-.01em}
+.brand b i{font-style:normal;color:var(--cat)}
+.brand small{opacity:.6;font-size:12px}
+header nav{display:flex;gap:6px;align-items:center;margin-left:auto;overflow-x:auto;padding:4px 0;min-width:0}
+header nav button{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.18);padding:5px 10px;border-radius:6px;font-size:13px;white-space:nowrap}
+header nav button:hover{background:rgba(255,255,255,.1)}
+header nav .sep{width:1px;height:22px;background:rgba(255,255,255,.18);margin:0 4px}
+.speed{display:flex;align-items:center;gap:6px;font-size:12px;color:#cdd6e6;white-space:nowrap}
+.speed input{width:90px;accent-color:var(--cat)}
+
+/* Zona principal */
+.app{display:grid;grid-template-columns:86px minmax(0,1fr) 340px;min-height:0}
+.palette{background:var(--panel);border-right:1px solid var(--line);padding:8px 6px;display:flex;flex-direction:column;gap:3px;overflow:auto}
+.pal-t{font-size:11px;color:var(--muted);text-align:center;margin:8px 0 2px}
+.tool{display:flex;flex-direction:column;align-items:center;gap:1px;border:1.5px solid transparent;background:none;border-radius:9px;padding:5px 2px;color:var(--ink);font-size:11.5px}
+.tool svg{width:42px;height:34px}
+.tool .gl{font-size:20px;line-height:34px;height:34px}
+.tool:hover{background:var(--soft)}
+.tool.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+
+.stagewrap{position:relative;min-width:0;min-height:0}
+.stage{position:absolute;inset:0;overflow:hidden}
+#svg{display:block;width:100%;height:100%;background-color:var(--bg);background-image:radial-gradient(var(--grid) 1.3px,transparent 1.3px);background-size:24px 24px;touch-action:none;user-select:none}
+.mode-cable #svg,.mode-place #svg{cursor:crosshair}
+.mode-delete #svg{cursor:not-allowed}
+
+.wire{stroke:var(--wire);stroke-width:2.6;stroke-linecap:round}
+.hit{stroke:transparent;stroke-width:16;cursor:pointer}
+.mode-delete .link:hover .wire{stroke:var(--danger);stroke-width:4}
+.plabel{font-size:10px;fill:var(--muted);text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.plabel .pip{fill:var(--accent);font-weight:600}
+.dev{cursor:grab}
+.mode-delete .dev{cursor:pointer}
+.dev .halo{fill:transparent;stroke:transparent}
+.dev:hover .halo{fill:color-mix(in srgb,var(--accent) 6%,transparent)}
+.dev.sel .halo{fill:color-mix(in srgb,var(--accent) 10%,transparent);stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4}
+.dev.cabling .halo{stroke:var(--cat);stroke-width:2.5;stroke-dasharray:none}
+.mode-delete .dev:hover .halo{stroke:var(--danger);stroke-width:2}
+.dname{font-size:12.5px;font-weight:650;fill:var(--ink);text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.dip{font-size:11px;fill:var(--muted);text-anchor:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;font-family:ui-monospace,Consolas,monospace}
+.badge circle{fill:var(--warn)}
+.badge text{fill:#fff;font-size:12px;font-weight:800;text-anchor:middle}
+.tempwire{stroke:var(--cat);stroke-width:3;stroke-dasharray:7 5;fill:none}
+.pkt text{font:700 8.5px system-ui,sans-serif;fill:#fff;text-anchor:middle;pointer-events:none}
+.pkt rect{stroke:rgba(0,0,0,.25);stroke-width:1}
+.drop circle{fill:var(--danger)}
+.drop path{stroke:#fff;stroke-width:2.2;stroke-linecap:round}
+
+.mission{position:absolute;left:12px;top:12px;max-width:430px;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--cat);
+  border-radius:10px;padding:10px 12px 10px 14px;box-shadow:0 8px 24px rgba(20,33,61,.12);font-size:13px;z-index:5}
+.mission .mh{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:700}
+.mission .mh button{border:0;background:var(--soft);color:var(--ink);border-radius:5px;padding:1px 8px}
+.mission .mb{white-space:pre-wrap;margin-top:6px;color:var(--ink)}
+.mission.min .mb{display:none}
+.mission[hidden]{display:none}
+.hint{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);background:var(--head);color:#fff;padding:7px 14px;border-radius:20px;font-size:12.5px;
+  box-shadow:0 6px 18px rgba(0,0,0,.2);z-index:6;white-space:nowrap}
+.hint[hidden]{display:none}
+.zoom{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:4px;z-index:5}
+.zoom button{width:32px;height:32px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font-size:17px;line-height:1}
+.zoom button:hover{border-color:var(--accent)}
+.panning #svg{cursor:grabbing}
+.hint kbd{background:rgba(255,255,255,.15);border-radius:4px;padding:0 5px;font:inherit}
+
+/* Panel de propiedades */
+.props{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:14px 16px 30px}
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ph svg{width:48px;height:40px;flex:none}
+.ph .tn{font-size:12px;color:var(--muted)}
+.ph input{font-size:16px;font-weight:700;padding:4px 7px;margin:0}
+.sec{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.sec h3{font-size:13px;margin:0 0 8px;color:var(--ink)}
+.props label{display:block;font-size:12px;color:var(--muted);margin-bottom:8px}
+.props input:not([type=checkbox]),.props select,.props textarea{display:block;width:100%;margin-top:3px;font:13px ui-monospace,Consolas,monospace;padding:6px 8px;
+  border:1px solid var(--line);border-radius:6px;background:var(--soft);color:var(--ink)}
+.props textarea{min-height:130px;resize:vertical;font-size:12px}
+.props input[readonly]{opacity:.7}
+.props input.bad{border-color:var(--danger);background:color-mix(in srgb,var(--danger) 8%,var(--soft))}
+.props small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.props .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.props .three{display:grid;grid-template-columns:1.2fr 1.2fr 1.2fr auto;gap:5px;align-items:end}
+.props .three input{margin:0}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.btn{border:1px solid var(--line);background:var(--soft);color:var(--ink);padding:6px 11px;border-radius:7px;font-size:13px}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn.x{padding:1px 7px;color:var(--danger)}
+.kv{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:2px 0}
+.kv code{color:var(--ink)}
+.warnbox{background:color-mix(in srgb,var(--warn) 11%,transparent);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);border-radius:8px;padding:7px 10px;font-size:12.5px;margin:10px 0}
+.warnbox div+div{margin-top:3px}
+.tbl{width:100%;border-collapse:collapse;font:12px ui-monospace,Consolas,monospace;margin-top:4px}
+.tbl th{text-align:left;font:600 11px system-ui,sans-serif;color:var(--muted);border-bottom:1px solid var(--line);padding:3px 4px}
+.tbl td{padding:3px 4px;border-bottom:1px dashed var(--line)}
+.empty{font-size:12px;color:var(--muted);font-style:italic}
+.iface{border:1px solid var(--line);border-radius:8px;padding:8px 9px 2px;margin-bottom:8px}
+.iface-h{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:4px}
+.up{color:var(--ok)} .down{color:var(--muted)}
+.svc{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.svc>label.sw{display:flex;gap:8px;align-items:center;color:var(--ink);font-weight:600;font-size:13px;margin:0}
+.svc .inner{margin-top:8px}
+.tips{font-size:12.5px;color:var(--muted);padding-left:18px;margin:6px 0}
+.tips li{margin-bottom:4px}
+
+/* Captura */
+.capture{background:var(--panel);border-top:1px solid var(--line);display:grid;grid-template-rows:38px minmax(0,1fr);min-height:0}
+.cap-head{display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--line)}
+.cap-head strong{font-size:13.5px}
+.chips{display:flex;gap:5px}
+.chip{border:1.5px solid var(--c);color:var(--c);background:transparent;border-radius:12px;padding:0 9px;font-size:11.5px;font-weight:700;line-height:20px}
+.chip.on{background:var(--c);color:#fff}
+.grow{flex:1}
+.cap-body{display:grid;grid-template-columns:minmax(0,1fr) 410px;min-height:0}
+.cap-table{overflow:auto}
+table.log{width:100%;border-collapse:collapse;font:12px ui-monospace,Consolas,monospace}
+table.log th{position:sticky;top:0;background:var(--panel);text-align:left;font:600 11.5px system-ui,sans-serif;color:var(--muted);padding:5px 8px;border-bottom:1px solid var(--line);z-index:1}
+table.log td{padding:3px 8px;border-bottom:1px solid var(--soft);white-space:nowrap}
+table.log td.inf{white-space:normal}
+table.log tr{cursor:pointer}
+table.log tbody tr:hover{background:var(--soft)}
+table.log tr.on{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.ptag{display:inline-block;min-width:44px;text-align:center;padding:0 5px;border-radius:4px;color:#fff;font:700 10.5px system-ui,sans-serif;line-height:17px}
+.cap-detail{border-left:1px solid var(--line);overflow:auto;padding:10px 12px;font-size:12.5px}
+.explain{background:color-mix(in srgb,var(--cat) 16%,transparent);border-left:4px solid var(--cat);padding:7px 10px;border-radius:6px;margin-bottom:8px}
+.layer{border:1px solid var(--line);border-radius:8px;margin-bottom:7px;overflow:hidden}
+.layer h4{margin:0;padding:4px 9px;font-size:12px;background:var(--soft);display:flex;justify-content:space-between}
+.layer h4 em{font-style:normal;color:var(--muted);font-weight:500}
+.layer dl{display:grid;grid-template-columns:auto 1fr;gap:1px 12px;margin:0;padding:6px 9px;font:12px ui-monospace,Consolas,monospace}
+.layer dt{color:var(--muted)} .layer dd{margin:0;white-space:pre-wrap;word-break:break-word}
+.muted{color:var(--muted)}
+
+/* Ventanas flotantes (consola y navegador) */
+.win{position:fixed;width:580px;height:350px;background:#0b1220;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,.4);display:flex;flex-direction:column;
+  overflow:hidden;border:1px solid #2a3550;resize:both;min-width:320px;min-height:200px}
+.win.browser{width:680px;height:470px}
+.win-bar{background:#1b2640;color:#dbe4f5;display:flex;align-items:center;justify-content:space-between;padding:6px 10px;cursor:move;user-select:none;font-size:13px;touch-action:none}
+.win-bar b{color:var(--cat);font-weight:600}
+.win-x{background:none;border:0;color:#dbe4f5;font-size:15px;padding:0 4px}
+.win-body{flex:1;display:flex;flex-direction:column;min-height:0}
+.term .win-body{font:13px/1.45 ui-monospace,"Cascadia Mono",Consolas,"Liberation Mono",monospace;color:#cfdbef}
+.term-out{flex:1;overflow:auto;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+.term-out .t-cmd{color:#fff}
+.term-out .t-ok{color:#5ee08e}
+.term-out .t-err{color:#ff8080}
+.term-out .t-warn{color:#ffcc55}
+.term-out .t-dim{color:#7f8da8}
+.term-in{display:flex;gap:6px;padding:6px 10px;border-top:1px solid #1f2a40;align-items:center}
+.term-in .prompt{color:var(--cat);white-space:nowrap}
+.term-in input{flex:1;background:none;border:0;outline:0;color:#fff;font:inherit;min-width:0}
+.browser .win-body{background:#fff}
+.bbar{display:flex;gap:6px;padding:7px;background:#e8edf5;align-items:center}
+.bbar input{flex:1;border:1px solid #c8d1df;border-radius:14px;padding:5px 12px;font:13px system-ui,sans-serif;background:#fff;color:#123}
+.bbar button{border:0;background:#1f5fd6;color:#fff;border-radius:14px;padding:5px 14px}
+.bstatus{font:12px system-ui,sans-serif;color:#3b4a63;padding:4px 10px;background:#f5f7fb;border-bottom:1px solid #e1e6ef;min-height:24px}
+.bstatus.err{color:#b42323;background:#fff1f1}
+.browser iframe{flex:1;border:0;width:100%;background:#fff}
+
+/* Modales */
+.modal{position:fixed;inset:0;background:rgba(10,16,30,.55);display:none;align-items:center;justify-content:center;z-index:9000;padding:20px}
+.modal.open{display:flex}
+.modal-card{background:var(--panel);color:var(--ink);border-radius:14px;max-width:820px;width:100%;max-height:100%;overflow:auto;padding:20px 24px;box-shadow:0 30px 60px rgba(0,0,0,.35)}
+.modal-card h2{margin:0 0 4px;font-size:21px}
+.modal-card .mhd{display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:12px}
+.xbtn{border:0;background:var(--soft);color:var(--ink);border-radius:7px;padding:4px 10px;font-size:15px}
+.exgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.ex{border:1px solid var(--line);border-radius:10px;padding:12px;text-align:left;background:var(--soft);color:var(--ink)}
+.ex:hover{border-color:var(--accent)}
+.ex b{display:block;font-size:14.5px;margin-bottom:3px}
+.ex span{font-size:12.5px;color:var(--muted)}
+.ex i{font-style:normal;font-size:11px;display:inline-block;margin-bottom:6px;padding:1px 7px;border-radius:9px;background:var(--cat);color:#14213d;font-weight:700}
+.calc-in{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.calc-in label{font-size:12px;color:var(--muted)}
+.calc-in input{display:block;width:100%;font:16px ui-monospace,Consolas,monospace;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);margin-top:3px}
+.calc-out table{width:100%;border-collapse:collapse;font-size:13.5px}
+.calc-out td{padding:6px 8px;border-bottom:1px solid var(--line)}
+.calc-out td:first-child{color:var(--muted);width:42%}
+.calc-out td:last-child{font-family:ui-monospace,Consolas,monospace}
+.bits{font:14px ui-monospace,Consolas,monospace;letter-spacing:.04em;background:var(--soft);padding:10px;border-radius:8px;margin:10px 0;overflow-x:auto;white-space:nowrap}
+.nb{color:var(--accent);font-weight:800}
+.hb{color:var(--ok)}
+.help h3{margin:16px 0 6px;font-size:15px}
+.help p,.help li{font-size:13.5px}
+.credit{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted)}
+.help code{background:var(--soft);padding:1px 5px;border-radius:4px;font-size:12.5px}
+.help table{border-collapse:collapse;width:100%;font-size:13px}
+.help td{border-bottom:1px solid var(--line);padding:4px 6px;vertical-align:top}
+.help td:first-child{font-family:ui-monospace,Consolas,monospace;white-space:nowrap}
+
+.toast{position:fixed;left:50%;bottom:260px;transform:translateX(-50%);background:var(--head);color:#fff;padding:9px 16px;border-radius:9px;font-size:13.5px;z-index:9500;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);max-width:80vw;border-left:5px solid var(--cat)}
+.toast.err{border-left-color:#ff6b6b}.toast.ok{border-left-color:#4ade80}
+
+@media (max-width:1380px){.brand small{display:none}}
+@media (max-width:1100px){.app{grid-template-columns:76px minmax(0,1fr) 290px}.cap-body{grid-template-columns:minmax(0,1fr) 320px}.brand small{display:none}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand"><b>Lab<i>Red</i></b><small>Simulador de redes · por Juan Luis Torralbo Muñoz</small></div>
+  <nav>
+    <button id="bNew" title="Empezar una red vacía">Nuevo</button>
+    <button id="bExamples">Ejemplos y retos</button>
+    <button id="bCalc">Calculadora IP</button>
+    <span class="sep"></span>
+    <button id="bSave" title="Descargar la red como archivo .json">Descargar</button>
+    <button id="bOpen" title="Abrir un archivo .json">Abrir</button>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <button id="bShare" title="Copiar un enlace que contiene toda la red">Compartir enlace</button>
+    <span class="sep"></span>
+    <button id="bReset" title="Vaciar tablas ARP y MAC de todos los equipos">Vaciar tablas</button>
+    <label class="speed">Velocidad <input type="range" id="speed" min="0" max="100" value="45"></label>
+    <button id="bHelp">Ayuda</button>
+  </nav>
+</header>
+
+<div class="app" id="app">
+  <aside class="palette" id="palette"></aside>
+  <section class="stagewrap">
+    <div class="stage" id="stage">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet">
+        <g id="gLinks"></g><g id="gTemp"></g><g id="gDevs"></g><g id="gPk"></g>
+      </svg>
+    </div>
+    <div class="mission" id="mission" hidden><div class="mh"><span>Misión</span><button id="mToggle" title="Minimizar">—</button></div><div class="mb" id="mBody"></div></div>
+    <div class="hint" id="hint" hidden></div>
+    <div class="zoom"><button id="zIn" title="Acercar">+</button><button id="zOut" title="Alejar">−</button><button id="zFit" title="Encuadrar toda la red">⤢</button></div>
+  </section>
+  <aside class="props" id="props"></aside>
+</div>
+
+<section class="capture">
+  <div class="cap-head">
+    <strong>Tráfico capturado</strong>
+    <div class="chips" id="chips"></div>
+    <span class="grow"></span>
+    <button class="btn sm" id="bClearLog">Limpiar captura</button>
+  </div>
+  <div class="cap-body">
+    <div class="cap-table">
+      <table class="log"><thead><tr><th>#</th><th>Tiempo</th><th>De</th><th>A</th><th>Protocolo</th><th>Información</th></tr></thead><tbody id="logBody"></tbody></table>
+    </div>
+    <div class="cap-detail" id="detail"><p class="muted">Haz clic en un paquete de la lista para ver sus capas: Ethernet, IP, transporte y aplicación.</p></div>
+  </div>
+</section>
+
+<!-- Ejemplos -->
+<div class="modal" id="mExamples"><div class="modal-card">
+  <div class="mhd"><div><h2>Ejemplos y retos</h2><div class="muted">Cada ejemplo trae una misión. Al abrirlo se sustituye la red actual.</div></div><button class="xbtn" data-close>✕</button></div>
+  <div class="exgrid" id="exGrid"></div>
+</div></div>
+
+<!-- Calculadora -->
+<div class="modal" id="mCalc"><div class="modal-card">
+  <div class="mhd"><div><h2>Calculadora IP</h2><div class="muted">Escribe una IP y su máscara (255.255.255.0 o /24).</div></div><button class="xbtn" data-close>✕</button></div>
+  <div class="calc-in">
+    <label>Dirección IP<input id="cIp" value="192.168.1.77" spellcheck="false"></label>
+    <label>Máscara<input id="cMask" value="/26" spellcheck="false"></label>
+  </div>
+  <div class="calc-out" id="cOut"></div>
+</div></div>
+
+<!-- Ayuda -->
+<div class="modal" id="mHelp"><div class="modal-card help">
+  <div class="mhd"><h2>Cómo se usa LabRed</h2><button class="xbtn" data-close>✕</button></div>
+  <h3>Montar la red</h3>
+  <ol>
+    <li>Elige un dispositivo en la barra izquierda y haz clic en el lienzo para colocarlo.</li>
+    <li>Con la herramienta <b>Cable</b>, haz clic en un dispositivo y después en otro. Se usa el primer puerto libre de cada uno.</li>
+    <li>Selecciona un equipo para configurarlo en el panel derecho: IP, máscara, puerta de enlace, DNS, servicios o rutas.</li>
+    <li>Haz doble clic en un PC, servidor o router para abrir su <b>consola</b>. Los PC también tienen <b>navegador</b>.</li>
+  </ol>
+  <p>Los equipos con un círculo naranja <b>!</b> tienen algún problema de configuración: selecciónalos para leerlo.</p>
+  <h3>Comandos de la consola</h3>
+  <table>
+    <tr><td>ipconfig</td><td>Muestra la configuración de red. <code>ipconfig /all</code>, <code>/renew</code> (pedir IP por DHCP), <code>/release</code>.</td></tr>
+    <tr><td>ping &lt;destino&gt;</td><td>Comprueba si un equipo responde (ICMP). Acepta IP o nombre. <code>-n 2</code> cambia el número de envíos.</td></tr>
+    <tr><td>tracert &lt;destino&gt;</td><td>Muestra los routers por los que pasa el paquete (usa el TTL).</td></tr>
+    <tr><td>arp -a / arp -d</td><td>Ver o vaciar la tabla ARP (IP ↔ MAC).</td></tr>
+    <tr><td>nslookup &lt;nombre&gt;</td><td>Pregunta al servidor DNS la IP de un nombre.</td></tr>
+    <tr><td>route print</td><td>Tabla de rutas. En el router también <code>show ip route</code>.</td></tr>
+    <tr><td>curl &lt;dirección&gt;</td><td>Descarga una página web y muestra el HTML.</td></tr>
+    <tr><td>cls · hostname · ayuda</td><td>Limpiar pantalla, nombre del equipo, lista de comandos.</td></tr>
+  </table>
+  <h3>Colores de los paquetes</h3>
+  <p id="legend"></p>
+  <h3>Guardar y compartir</h3>
+  <p>La red se guarda sola en este navegador. <b>Descargar</b> crea un archivo .json que se puede abrir después. <b>Compartir enlace</b> copia una dirección que contiene la red completa, incluido el enunciado de la misión: útil para repartir ejercicios al alumnado.</p>
+  <p class="credit">LabRed ha sido creado por <b>Juan Luis Torralbo Muñoz</b>.</p>
+</div></div>
+
+<script>
+'use strict';
+/* =========================================================
+   LabRed · simulador educativo de redes (un solo archivo)
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const NS = 'http://www.w3.org/2000/svg';
+const BMAC = 'FF:FF:FF:FF:FF:FF';
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const hex = n => '0x' + (n >>> 0).toString(16).toUpperCase().padStart(8, '0');
+function el(tag, attrs = {}) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+/* ---------- Tipos de dispositivo ---------- */
+const TYPES = {
+  pc:     { label: 'PC',       ports: 1, prefix: 'PC',  pname: () => 'eth0' },
+  server: { label: 'Servidor', ports: 1, prefix: 'SRV', pname: () => 'eth0' },
+  switch: { label: 'Switch',   ports: 8, prefix: 'SW',  pname: i => 'Fa0/' + (i + 1) },
+  hub:    { label: 'Hub',      ports: 6, prefix: 'HUB', pname: i => 'P' + (i + 1) },
+  router: { label: 'Router',   ports: 4, prefix: 'R',   pname: i => 'Gi0/' + i },
+};
+const ICON = {
+  pc: `<rect x="-22" y="-20" width="44" height="30" rx="4" fill="#1f5fd6"/><rect x="-18" y="-16" width="36" height="22" rx="2" fill="#d9e6ff"/><path d="M-12 -10h14M-12 -5h20M-12 0h10" stroke="#1f5fd6" stroke-width="1.6" opacity=".5"/><rect x="-5" y="10" width="10" height="6" fill="#1a4db0"/><rect x="-15" y="16" width="30" height="4" rx="2" fill="#163f91"/>`,
+  server: `<rect x="-16" y="-25" width="32" height="47" rx="4" fill="#5536c9"/>` + [-20, -8, 4].map(y => `<rect x="-11" y="${y}" width="22" height="8" rx="2" fill="#e5deff"/><circle cx="6" cy="${y + 4}" r="1.9" fill="#1ec26a"/>`).join('') + `<rect x="-11" y="15" width="22" height="2.5" rx="1" fill="#8f7ae6"/>`,
+  switch: `<rect x="-29" y="-13" width="58" height="26" rx="5" fill="#0d8f83"/><path d="M-17 -4h30m-5-4 5 4-5 4M17 5h-30m5-4-5 4 5 4" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  hub: `<rect x="-29" y="-12" width="58" height="24" rx="5" fill="#6d7a8f"/>` + [-20, -12, -4, 4, 12, 20].map(x => `<rect x="${x - 3}" y="-4" width="6" height="8" rx="1" fill="#e8edf5"/>`).join(''),
+  router: `<ellipse cx="0" cy="7" rx="25" ry="9" fill="#b8420c"/><rect x="-25" y="-7" width="50" height="14" fill="#e3600f"/><ellipse cx="0" cy="-7" rx="25" ry="9" fill="#f58a3c"/><path d="M-16 -7h9m-3-3 3 3-3 3M16 -7h-9m3-3-3 3 3 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+};
+const PCOL = { ARP: '#c98f00', ICMP: '#14924a', DHCP: '#7c4ddb', DNS: '#d12a78', TCP: '#1f5fd6', HTTP: '#0a87a3', UDP: '#5d6b82' };
+
+/* ---------- Utilidades IP ---------- */
+function ip2n(ip) {
+  const p = String(ip ?? '').trim().split('.'); if (p.length !== 4) return null;
+  let n = 0; for (const x of p) { if (!/^\d{1,3}$/.test(x)) return null; const v = +x; if (v > 255) return null; n = n * 256 + v; }
+  return n >>> 0;
+}
+const n2ip = n => [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
+function maskLen(m) {
+  const n = ip2n(m); if (n === null) return null;
+  const inv = (~n) >>> 0; if ((inv & (inv + 1)) !== 0) return null;
+  let c = 0; for (let i = 31; i >= 0; i--) if ((n >>> i) & 1) c++; return c;
+}
+const lenToMask = l => l === 0 ? '0.0.0.0' : n2ip((0xFFFFFFFF << (32 - l)) >>> 0);
+function normMask(v) {
+  const s = String(v).trim(); const m = s.match(/^\/?(\d{1,2})$/);
+  if (m && +m[1] <= 32) return lenToMask(+m[1]);
+  return maskLen(s) !== null ? s : null;
+}
+function sameNet(a, b, mask) {
+  const A = ip2n(a), B = ip2n(b), M = ip2n(mask); if (A === null || B === null || M === null) return false;
+  return ((A & M) >>> 0) === ((B & M) >>> 0);
+}
+const netOf = (ip, m) => n2ip((ip2n(ip) & ip2n(m)) >>> 0);
+const bcastOf = (ip, m) => n2ip(((ip2n(ip) & ip2n(m)) | (~ip2n(m))) >>> 0);
+function randMac() { const h = () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0').toUpperCase(); return ['00', '1A', h(), h(), h(), h()].join(':'); }
+const validFor = (path, v) => /mask$/i.test(path) ? maskLen(v) !== null : ip2n(v) !== null;
+
+/* ---------- Estado ---------- */
+let S = emptyNet();
+let RT = {};                 // tablas y datos en ejecución (no se guardan)
+let sel = null, tool = 'select', cableA = null, drag = null;
+let hopMs = 500;
+const T0 = performance.now();
+function emptyNet() { return { devices: [], links: [], seq: 1, mission: '' }; }
+const dev = id => S.devices.find(d => d.id === id);
+function rt(d) { return RT[d.id] || (RT[d.id] = { arp: {}, mac: {}, pending: [], arpAsk: {}, waiters: {}, leases: {} }); }
+const myIPs = d => d.ifaces.map(f => f.ip).filter(Boolean);
+const tmo = () => hopMs * 40 + 1500;
+const isHost = d => d.type === 'pc' || d.type === 'server';
+
+const DEFAULT_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:system-ui,sans-serif;margin:0;background:#f3f7ff;color:#14213d}header{background:#1f5fd6;color:#fff;padding:26px 30px}h1{margin:0}main{padding:24px 30px;font-size:17px}</style></head><body><header><h1>Servidor web</h1></header><main><p>¡Funciona! Esta página ha viajado por la red usando HTTP.</p><p>Puedes cambiarla en el panel del servidor.</p></main></body></html>`;
+
+function uniqueName(prefix) { let n = 1; while (S.devices.some(d => d.name === prefix + n)) n++; return prefix + n; }
+function newDevice(type, x, y, name) {
+  const T = TYPES[type];
+  const d = {
+    id: 'd' + (S.seq++), type, name: name || uniqueName(T.prefix), x: Math.round(x), y: Math.round(y),
+    ifaces: Array.from({ length: T.ports }, (_, i) => ({ name: T.pname(i), mac: randMac(), ip: '', mask: '255.255.255.0', link: null })),
+    gw: '', dns: '', dhcp: false, routes: [], svc: null,
+  };
+  if (type === 'server') d.svc = defaultSvc();
+  S.devices.push(d); return d;
+}
+function defaultSvc() {
+  return { dhcp: { on: false, start: '192.168.1.100', end: '192.168.1.150', mask: '255.255.255.0', gw: '192.168.1.1', dns: '' },
+           dns: { on: false, records: [] }, http: { on: false, html: DEFAULT_HTML } };
+}
+function addLink(a, ai, b, bi) {
+  const l = { id: 'l' + (S.seq++), a: a.id, ai, b: b.id, bi };
+  a.ifaces[ai].link = l.id; b.ifaces[bi].link = l.id; S.links.push(l); return l;
+}
+function removeLink(l) {
+  const A = dev(l.a), B = dev(l.b);
+  if (A && A.ifaces[l.ai]) A.ifaces[l.ai].link = null;
+  if (B && B.ifaces[l.bi]) B.ifaces[l.bi].link = null;
+  S.links = S.links.filter(x => x !== l); clearDynamic();
+}
+function deleteDevice(d) {
+  S.links.filter(l => l.a === d.id || l.b === d.id).forEach(removeLink);
+  S.devices = S.devices.filter(x => x !== d); delete RT[d.id];
+  ['con-', 'web-'].forEach(k => { const w = wins[k + d.id]; if (w) { w.remove(); delete wins[k + d.id]; } });
+  if (sel === d.id) sel = null; if (cableA === d.id) cableA = null;
+}
+function peerOf(d, i) {
+  const id = d.ifaces[i] && d.ifaces[i].link; if (!id) return null;
+  const l = S.links.find(x => x.id === id); if (!l) return null;
+  const o = l.a === d.id ? { d: dev(l.b), i: l.bi, l } : { d: dev(l.a), i: l.ai, l };
+  return o.d ? o : null;
+}
+function clearDynamic() {
+  for (const k in RT) { const r = RT[k]; r.arp = {}; r.mac = {}; r.pending = []; r.arpAsk = {}; }
+  if (sel && dev(sel)) refreshTables(dev(sel));
+}
+
+/* =========================================================
+   MOTOR DE SIMULACIÓN
+   ========================================================= */
+function transmit(d, i, frame) {
+  const p = peerOf(d, i); if (!p) return;
+  const f = clone(frame);
+  logFrame(d, p.d, f);
+  animatePacket(d, p.d, f, () => {
+    const q = peerOf(d, i);
+    if (q && q.l.id === p.l.id && dev(p.d.id)) receive(p.d, p.i, f);
+  });
+}
+
+function receive(d, i, f) {
+  const r = rt(d);
+  if (d.type === 'switch') {
+    if (f.src !== BMAC) r.mac[f.src] = i;
+    const port = r.mac[f.dst];
+    if (f.dst !== BMAC && port !== undefined && d.ifaces[port].link) { if (port !== i) transmit(d, port, f); }
+    else d.ifaces.forEach((x, j) => { if (j !== i && x.link) transmit(d, j, f); });
+    refreshTables(d); return;
+  }
+  if (d.type === 'hub') { d.ifaces.forEach((x, j) => { if (j !== i && x.link) transmit(d, j, f); }); return; }
+  const ifc = d.ifaces[i];
+  if (f.dst !== BMAC && f.dst !== ifc.mac) { flashDrop(d); return; } // la trama no es para mí
+  if (f.type === 'ARP') handleArp(d, i, f.payload);
+  else if (f.type === 'IP') handleIP(d, i, f.payload);
+}
+
+function handleArp(d, i, a) {
+  const r = rt(d), ifc = d.ifaces[i];
+  const forMe = ifc.ip && a.tpa === ifc.ip;
+  if (a.spa && a.spa !== '0.0.0.0' && (forMe || r.arp[a.spa] || a.op === 2)) r.arp[a.spa] = { mac: a.sha, i };
+  if (a.op === 1 && forMe) transmit(d, i, { src: ifc.mac, dst: a.sha, type: 'ARP', payload: { op: 2, sha: ifc.mac, spa: ifc.ip, tha: a.sha, tpa: a.spa } });
+  flushPending(d); refreshTables(d);
+}
+function flushPending(d) {
+  const r = rt(d);
+  r.pending = r.pending.filter(p => {
+    const e = r.arp[p.nh]; if (!e) return true;
+    delete r.arpAsk[p.nh];
+    transmit(d, p.i, { src: d.ifaces[p.i].mac, dst: e.mac, type: 'IP', payload: p.pkt });
+    return false;
+  });
+}
+function resolveAndSend(d, i, nh, pkt) {
+  const r = rt(d), ifc = d.ifaces[i], e = r.arp[nh];
+  if (e) { transmit(d, i, { src: ifc.mac, dst: e.mac, type: 'IP', payload: pkt }); return; }
+  r.pending.push({ nh, i, pkt });
+  if (!r.arpAsk[nh]) {
+    r.arpAsk[nh] = true;
+    transmit(d, i, { src: ifc.mac, dst: BMAC, type: 'ARP', payload: { op: 1, sha: ifc.mac, spa: ifc.ip, tha: '00:00:00:00:00:00', tpa: nh } });
+    setTimeout(() => { delete r.arpAsk[nh]; r.pending = r.pending.filter(p => p.nh !== nh); }, hopMs * 16 + 800);
+  }
+}
+
+/* Rutas de un router: conectadas (C) + estáticas (S) */
+function routesOf(d) {
+  const out = [];
+  d.ifaces.forEach((f, i) => { if (f.ip && f.link && ip2n(f.ip) !== null && maskLen(f.mask) !== null) out.push({ net: netOf(f.ip, f.mask), mask: f.mask, via: '', i, type: 'C' }); });
+  d.routes.forEach((r, ri) => {
+    const c = out.find(x => x.type === 'C' && sameNet(r.via, x.net, x.mask));
+    out.push({ net: r.net, mask: r.mask, via: r.via, i: c ? c.i : -1, type: 'S', ri });
+  });
+  return out;
+}
+function lookup(d, dst) {
+  let best = null, bl = -1;
+  for (const r of routesOf(d)) { if (r.i < 0) continue; const l = maskLen(r.mask); if (l !== null && sameNet(dst, r.net, r.mask) && l > bl) { best = r; bl = l; } }
+  return best ? { i: best.i, nh: best.via || dst } : null;
+}
+
+/* Enviar un paquete IP desde un equipo */
+function sendIP(d, pkt) {
+  if (pkt.dst.startsWith('127.') || myIPs(d).includes(pkt.dst)) {
+    if (!pkt.src) pkt.src = pkt.dst; const P = clone(pkt); setTimeout(() => deliverLocal(d, 0, P), 20); return { ok: true };
+  }
+  if (d.type === 'router') {
+    const r = lookup(d, pkt.dst); if (!r) return { ok: false, err: `El router no tiene ninguna ruta hacia ${pkt.dst}.` };
+    if (!pkt.src) pkt.src = d.ifaces[r.i].ip;
+    resolveAndSend(d, r.i, r.nh, pkt); return { ok: true };
+  }
+  const f = d.ifaces[0];
+  if (!f.link) return { ok: false, err: 'El cable de red está desconectado.' };
+  if (!f.ip) return { ok: false, err: 'Este equipo no tiene dirección IP.' };
+  if (ip2n(f.ip) === null || maskLen(f.mask) === null) return { ok: false, err: 'La IP o la máscara de este equipo no son válidas.' };
+  if (!pkt.src) pkt.src = f.ip;
+  if (pkt.dst === '255.255.255.255' || pkt.dst === bcastOf(f.ip, f.mask)) { transmit(d, 0, { src: f.mac, dst: BMAC, type: 'IP', payload: pkt }); return { ok: true }; }
+  let nh;
+  if (sameNet(pkt.dst, f.ip, f.mask)) nh = pkt.dst;
+  else {
+    if (!d.gw) return { ok: false, err: `${pkt.dst} está en otra red y este equipo no tiene puerta de enlace.` };
+    if (!sameNet(d.gw, f.ip, f.mask)) return { ok: false, err: 'La puerta de enlace no está en la misma red que este equipo.' };
+    nh = d.gw;
+  }
+  resolveAndSend(d, 0, nh, pkt); return { ok: true };
+}
+
+function handleIP(d, i, pkt) {
+  const ifc = d.ifaces[i];
+  const mine = myIPs(d).includes(pkt.dst);
+  const isB = pkt.dst === '255.255.255.255' || (ifc.ip && maskLen(ifc.mask) !== null && pkt.dst === bcastOf(ifc.ip, ifc.mask));
+  if (mine || isB) return deliverLocal(d, i, pkt);
+  if (d.type !== 'router') return;
+  // El router reenvía
+  pkt.ttl--;
+  if (pkt.ttl <= 0) { icmpError(d, i, pkt, 11, 'Tiempo de vida (TTL) agotado en tránsito'); return; }
+  const r = lookup(d, pkt.dst);
+  if (!r) { icmpError(d, i, pkt, 3, 'Red de destino inalcanzable'); return; }
+  resolveAndSend(d, r.i, r.nh, pkt);
+}
+function icmpError(d, i, orig, type, text) {
+  if (orig.proto === 'ICMP' && orig.icmp.type !== 8) return;
+  if (!orig.src || orig.src === '0.0.0.0') return;
+  const icmp = { type, code: 0, text };
+  if (orig.proto === 'ICMP') icmp.ref = { id: orig.icmp.id, seq: orig.icmp.seq }; else icmp.refPort = orig.sport;
+  sendIP(d, { src: d.ifaces[i].ip || undefined, dst: orig.src, ttl: 255, proto: 'ICMP', icmp });
+}
+
+function deliverLocal(d, i, pkt) {
+  if (pkt.proto === 'ICMP') {
+    const c = pkt.icmp;
+    if (c.type === 8) { sendIP(d, { src: pkt.dst === '255.255.255.255' ? undefined : pkt.dst, dst: pkt.src, ttl: d.type === 'router' ? 255 : 128, proto: 'ICMP', icmp: { type: 0, id: c.id, seq: c.seq } }); return; }
+    if (c.type === 0) resolveW(d, `icmp:${c.id}:${c.seq}`, pkt);
+    else if (c.ref) resolveW(d, `icmp:${c.ref.id}:${c.ref.seq}`, pkt);
+    else if (c.refPort) resolveW(d, 'p:' + c.refPort, pkt);
+    return;
+  }
+  if (pkt.proto === 'UDP') {
+    if (pkt.dport === 67) { if (d.svc && d.svc.dhcp.on) dhcpServer(d, pkt); return; }
+    if (pkt.dport === 68) { if (d.type === 'pc') dhcpClientRx(d, pkt); return; }
+    if (pkt.dport === 53) { if (d.svc && d.svc.dns.on) dnsServer(d, pkt); else icmpError(d, i, pkt, 3, 'Puerto inalcanzable: ese equipo no es servidor DNS'); return; }
+    resolveW(d, 'p:' + pkt.dport, pkt); return;
+  }
+  if (pkt.proto === 'TCP') { if (pkt.dport === 80) httpServer(d, pkt); else resolveW(d, 'p:' + pkt.dport, pkt); }
+}
+
+/* Esperas (promesas con tiempo límite) */
+function waitFor(d, key, ms) {
+  return new Promise(res => {
+    const r = rt(d);
+    const t = setTimeout(() => { delete r.waiters[key]; res(null); }, ms);
+    r.waiters[key] = { res: p => { clearTimeout(t); delete r.waiters[key]; res(p); }, t };
+  });
+}
+function resolveW(d, key, pkt) { const w = rt(d).waiters[key]; if (w) w.res(pkt); }
+function cancelW(d, key) { const w = rt(d).waiters[key]; if (w) w.res(null); }
+const eph = () => 49152 + Math.floor(Math.random() * 16000);
+
+/* ---------- Servicios ---------- */
+function httpServer(d, pkt) {
+  const reply = (flags, data) => sendIP(d, { src: pkt.dst, dst: pkt.src, ttl: 128, proto: 'TCP', sport: 80, dport: pkt.sport, flags, data });
+  if (!d.svc || !d.svc.http.on) { reply('RST,ACK'); return; }
+  if (pkt.flags === 'SYN') reply('SYN,ACK');
+  else if (pkt.data && pkt.data.http) reply('PSH,ACK', { http: 'HTTP/1.1 200 OK', html: d.svc.http.html });
+  else if (pkt.flags.includes('FIN')) reply('FIN,ACK');
+}
+function dnsServer(d, pkt) {
+  const q = pkt.dnsq.q.toLowerCase();
+  const rec = d.svc.dns.records.find(x => x.name.toLowerCase() === q);
+  sendIP(d, { src: pkt.dst, dst: pkt.src, ttl: 128, proto: 'UDP', sport: 53, dport: pkt.sport, dnsr: { id: pkt.dnsq.id, q: pkt.dnsq.q, ip: rec ? rec.ip : null } });
+}
+function allocIp(d, mac) {
+  const r = rt(d); if (r.leases[mac]) return r.leases[mac];
+  const c = d.svc.dhcp, a = ip2n(c.start), b = ip2n(c.end); if (a === null || b === null || a > b) return null;
+  const used = new Set([...Object.values(r.leases), ...S.devices.flatMap(x => x.ifaces.map(f => f.ip)).filter(Boolean)]);
+  for (let n = a; n <= b; n++) { const ip = n2ip(n); if (!used.has(ip)) { r.leases[mac] = ip; return ip; } }
+  return null;
+}
+function dhcpServer(d, pkt) {
+  const f = d.ifaces[0], m = pkt.dhcp, c = d.svc.dhcp; if (!f.ip) return;
+  if (m.op === 'REQUEST' && m.server !== f.ip) return;
+  if (m.op !== 'DISCOVER' && m.op !== 'REQUEST') return;
+  const ip = allocIp(d, m.chaddr); if (!ip) return;
+  const op = m.op === 'DISCOVER' ? 'OFFER' : 'ACK';
+  transmit(d, 0, { src: f.mac, dst: m.chaddr, type: 'IP', payload: { src: f.ip, dst: '255.255.255.255', ttl: 128, proto: 'UDP', sport: 67, dport: 68,
+    dhcp: { op, xid: m.xid, chaddr: m.chaddr, yiaddr: ip, mask: c.mask, gw: c.gw, dns: c.dns, server: f.ip } } });
+}
+function dhcpClientRx(d, pkt) { const m = pkt.dhcp; if (m.chaddr !== d.ifaces[0].mac) return; resolveW(d, `dhcp:${m.xid}:${m.op}`, pkt); }
+const dhcpFrame = (mac, m) => ({ src: mac, dst: BMAC, type: 'IP', payload: { src: '0.0.0.0', dst: '255.255.255.255', ttl: 64, proto: 'UDP', sport: 68, dport: 67, dhcp: m } });
+
+async function dhcpRenew(d, out) {
+  const f = d.ifaces[0];
+  if (d.type !== 'pc') { out('Solo los PC pueden pedir IP por DHCP.', 'err'); return false; }
+  if (!f.link) { out('No hay cable de red conectado.', 'err'); return false; }
+  d.dhcp = true; f.ip = ''; d.gw = ''; d.dns = ''; rt(d).arp = {}; render(); propsSoft(d);
+  const xid = (Math.random() * 0xFFFFFFFF) >>> 0;
+  out('DHCP DISCOVER: buscando un servidor DHCP en la red…', 'dim');
+  let w = waitFor(d, `dhcp:${xid}:OFFER`, tmo());
+  transmit(d, 0, dhcpFrame(f.mac, { op: 'DISCOVER', xid, chaddr: f.mac }));
+  let p = await w;
+  if (!p) { out('Ningún servidor DHCP ha respondido. ¿Hay un servidor con DHCP activado en esta misma red?', 'err'); return false; }
+  const o = p.dhcp; out(`DHCP OFFER: el servidor ${o.server} ofrece la IP ${o.yiaddr}`, 'dim');
+  await sleep(hopMs * 0.5);
+  out('DHCP REQUEST: aceptando la oferta…', 'dim');
+  w = waitFor(d, `dhcp:${xid}:ACK`, tmo());
+  transmit(d, 0, dhcpFrame(f.mac, { op: 'REQUEST', xid, chaddr: f.mac, req: o.yiaddr, server: o.server }));
+  p = await w;
+  if (!p) { out('El servidor no ha confirmado la IP.', 'err'); return false; }
+  const k = p.dhcp; f.ip = k.yiaddr; f.mask = k.mask; d.gw = k.gw || ''; d.dns = k.dns || '';
+  out(`DHCP ACK: IP ${f.ip}  máscara ${f.mask}  puerta de enlace ${d.gw || '—'}  DNS ${d.dns || '—'}`, 'ok');
+  render(); propsSoft(d); save(); return true;
+}
+
+async function dnsResolve(d, name) {
+  if (!d.dns) return { err: 'Este equipo no tiene servidor DNS configurado: no puede traducir nombres a IP.' };
+  const sport = eph(), id = Math.floor(Math.random() * 65535);
+  const w = waitFor(d, 'p:' + sport, tmo());
+  const s = sendIP(d, { dst: d.dns, ttl: 128, proto: 'UDP', sport, dport: 53, dnsq: { id, q: name } });
+  if (!s.ok) { cancelW(d, 'p:' + sport); return { err: s.err }; }
+  const p = await w;
+  if (!p) return { err: `El servidor DNS ${d.dns} no responde.` };
+  if (p.proto === 'ICMP') return { err: `${d.dns}: ${p.icmp.text}.` };
+  if (!p.dnsr.ip) return { err: `El DNS no conoce el nombre ${name}.` };
+  return { ip: p.dnsr.ip, server: d.dns };
+}
+
+async function httpGet(d, url, prog) {
+  const host = String(url).trim().replace(/^https?:\/\//i, '').split('/')[0];
+  if (!host) throw new Error('Escribe una dirección.');
+  let ip = host;
+  if (ip2n(host) === null) { prog(`Preguntando al DNS la IP de ${host}…`); const r = await dnsResolve(d, host); if (r.err) throw new Error(r.err); ip = r.ip; }
+  prog(`Abriendo conexión TCP con ${ip}, puerto 80 (saludo en 3 pasos)…`);
+  const sport = eph(), base = { dst: ip, ttl: 128, proto: 'TCP', sport, dport: 80 };
+  let w = waitFor(d, 'p:' + sport, tmo());
+  const s = sendIP(d, { ...base, flags: 'SYN' });
+  if (!s.ok) { cancelW(d, 'p:' + sport); throw new Error(s.err); }
+  let p = await w;
+  if (!p) throw new Error(`${ip} no responde (tiempo de espera agotado).`);
+  if (p.proto === 'ICMP') throw new Error(p.icmp.text);
+  if (p.flags.includes('RST')) throw new Error(`Conexión rechazada: ${ip} no tiene un servidor web activo.`);
+  sendIP(d, { ...base, flags: 'ACK' });
+  await sleep(hopMs * 0.7);
+  prog('Conexión establecida. Enviando la petición HTTP GET…');
+  w = waitFor(d, 'p:' + sport, tmo());
+  sendIP(d, { ...base, flags: 'PSH,ACK', data: { http: `GET / HTTP/1.1\nHost: ${host}` } });
+  p = await w;
+  if (!p || !p.data) throw new Error('No ha llegado la respuesta HTTP.');
+  await sleep(hopMs * 0.4);
+  sendIP(d, { ...base, flags: 'FIN,ACK' });
+  return { html: p.data.html, ip, host };
+}
+
+/* =========================================================
+   CONSOLA
+   ========================================================= */
+const promptOf = d => d.type === 'router' ? d.name + '#' : `C:\\${d.name}>`;
+async function resolveTarget(d, t, out) {
+  if (ip2n(t) !== null) return t;
+  if (d.type === 'router') { out('El router no usa DNS: escribe una dirección IP.', 'err'); return null; }
+  const r = await dnsResolve(d, t); if (r.err) { out(r.err, 'err'); return null; }
+  return r.ip;
+}
+async function ping(d, target, n, out) {
+  const ip = await resolveTarget(d, target, out); if (!ip) return;
+  out(ip === target ? `Haciendo ping a ${ip} con 32 bytes de datos:` : `Haciendo ping a ${target} [${ip}] con 32 bytes de datos:`);
+  let ok = 0, sent = 0;
+  for (let s = 1; s <= n; s++) {
+    const id = Math.floor(Math.random() * 65535), key = `icmp:${id}:${s}`, t0 = performance.now();
+    const w = waitFor(d, key, tmo());
+    const r = sendIP(d, { dst: ip, ttl: d.type === 'router' ? 255 : 128, proto: 'ICMP', icmp: { type: 8, id, seq: s } });
+    if (!r.ok) { cancelW(d, key); out('Error: ' + r.err, 'err'); return; }
+    sent++;
+    const p = await w;
+    if (!p) out('Tiempo de espera agotado para esta solicitud.', 'warn');
+    else if (p.icmp.type === 0) { ok++; out(`Respuesta desde ${p.src}: bytes=32 tiempo=${Math.max(1, Math.round((performance.now() - t0) / hopMs))}ms TTL=${p.ttl}`, 'ok'); }
+    else out(`Respuesta desde ${p.src}: ${p.icmp.text}.`, 'warn');
+    if (s < n) await sleep(Math.max(250, hopMs * 0.8));
+  }
+  const lost = sent - ok;
+  out(`\nEstadísticas de ping para ${ip}:\n    Paquetes: enviados = ${sent}, recibidos = ${ok}, perdidos = ${lost} (${sent ? Math.round(lost / sent * 100) : 0}% perdidos)`);
+}
+async function tracert(d, target, out) {
+  const ip = await resolveTarget(d, target, out); if (!ip) return;
+  out(`Traza a ${target !== ip ? target + ' [' + ip + ']' : ip} sobre un máximo de 15 saltos:\n`);
+  let miss = 0;
+  for (let ttl = 1; ttl <= 15; ttl++) {
+    const id = Math.floor(Math.random() * 65535), key = `icmp:${id}:${ttl}`;
+    const w = waitFor(d, key, tmo());
+    const r = sendIP(d, { dst: ip, ttl, proto: 'ICMP', icmp: { type: 8, id, seq: ttl } });
+    if (!r.ok) { cancelW(d, key); out('Error: ' + r.err, 'err'); return; }
+    const p = await w;
+    const nn = String(ttl).padStart(3);
+    if (!p) { out(`${nn}     *        Tiempo de espera agotado para esta solicitud.`, 'warn'); if (++miss >= 3) { out('\nSe detiene la traza: no llegan respuestas.', 'warn'); return; } continue; }
+    miss = 0;
+    const who = S.devices.find(x => myIPs(x).includes(p.src));
+    out(`${nn}   ${p.src.padEnd(16)}${who ? '(' + who.name + ')' : ''}`, p.icmp.type === 0 ? 'ok' : undefined);
+    if (p.icmp.type === 0) { out('\nTraza completa.'); return; }
+    if (p.icmp.type === 3) { out(`\n${p.src} informa: ${p.icmp.text}.`, 'err'); return; }
+    await sleep(200);
+  }
+}
+function arpPrint(d, out) {
+  const t = rt(d).arp, ks = Object.keys(t);
+  if (!ks.length) { out('No hay entradas ARP. La tabla se llena cuando el equipo se comunica con otros.'); return; }
+  out('  Dirección IP        Dirección física (MAC)   Interfaz');
+  ks.forEach(k => out(`  ${k.padEnd(20)}${t[k].mac.padEnd(25)}${d.ifaces[t[k].i].name}`));
+}
+function routePrint(d, out) {
+  if (d.type === 'router') {
+    out('Códigos: C = conectada directamente, S = estática\n');
+    const rs = routesOf(d); if (!rs.length) { out('La tabla de rutas está vacía: configura IP en las interfaces conectadas.'); return; }
+    rs.forEach(r => {
+      const pre = `${r.net}/${maskLen(r.mask)}`;
+      if (r.type === 'C') out(`C   ${pre.padEnd(20)} conectada directamente, ${d.ifaces[r.i].name}`);
+      else out(`S   ${pre.padEnd(20)} vía ${r.via}${r.i < 0 ? '   (¡inalcanzable: el siguiente salto no está en ninguna red conectada!)' : ', ' + d.ifaces[r.i].name}`, r.i < 0 ? 'warn' : undefined);
+    });
+    return;
+  }
+  const f = d.ifaces[0];
+  if (!f.ip) { out('El equipo no tiene IP: la tabla de rutas está vacía.'); return; }
+  out('Destino de red    Máscara            Puerta de enlace   Interfaz');
+  out(`${netOf(f.ip, f.mask).padEnd(18)}${f.mask.padEnd(19)}${'En vínculo'.padEnd(19)}${f.ip}`);
+  if (d.gw) out(`${'0.0.0.0'.padEnd(18)}${'0.0.0.0'.padEnd(19)}${d.gw.padEnd(19)}${f.ip}`);
+}
+function ipconfigPrint(d, all, out) {
+  if (d.type === 'router') {
+    out('Interfaz   Dirección IP       Máscara            Estado');
+    d.ifaces.forEach((f, i) => out(`${f.name.padEnd(11)}${(f.ip || 'sin asignar').padEnd(19)}${(f.ip ? f.mask : '').padEnd(19)}${peerOf(d, i) ? 'activa' : 'sin cable'}`));
+    return;
+  }
+  const f = d.ifaces[0];
+  out(`\nAdaptador de Ethernet ${f.name}:\n`);
+  if (!f.link) out('   Estado del medio. . . . . . . . . : medios desconectados', 'warn');
+  if (all) { out(`   Dirección física (MAC). . . . . . : ${f.mac}`); out(`   DHCP habilitado . . . . . . . . . : ${d.dhcp ? 'Sí' : 'No'}`); }
+  out(`   Dirección IPv4. . . . . . . . . . : ${f.ip || '(ninguna)'}`);
+  out(`   Máscara de subred . . . . . . . . : ${f.ip ? f.mask : ''}`);
+  out(`   Puerta de enlace predeterminada . : ${d.gw}`);
+  if (all || d.dns) out(`   Servidor DNS. . . . . . . . . . . : ${d.dns}`);
+}
+function helpText(isR) {
+  const c = isR
+    ? [['ping <IP>', 'comprobar si un equipo responde'], ['tracert <IP>', 'ver los saltos hasta un destino'], ['show ip route', 'tabla de rutas'], ['show arp', 'tabla ARP'], ['show ip interface brief', 'interfaces y sus IP'], ['cls', 'limpiar pantalla']]
+    : [['ipconfig [/all]', 'ver configuración de red'], ['ipconfig /renew', 'pedir IP a un servidor DHCP'], ['ipconfig /release', 'liberar la IP de DHCP'], ['ping <IP|nombre> [-n N]', 'comprobar si un equipo responde'], ['tracert <IP|nombre>', 'ver los routers del camino'], ['arp -a  /  arp -d', 'ver / vaciar la tabla ARP'], ['nslookup <nombre>', 'preguntar al DNS'], ['route print', 'tabla de rutas del equipo'], ['curl <dirección>', 'descargar una página web'], ['hostname', 'nombre del equipo'], ['cls', 'limpiar pantalla']];
+  return 'Comandos disponibles:\n' + c.map(([a, b]) => '  ' + a.padEnd(26) + b).join('\n');
+}
+async function runCmd(d, line, out, clear) {
+  const a = line.trim().split(/\s+/).filter(Boolean); if (!a.length) return;
+  const c = a[0].toLowerCase(), args = a.slice(1), low = a.join(' ').toLowerCase(), isR = d.type === 'router';
+  if (['ayuda', 'help', '?'].includes(c)) return out(helpText(isR));
+  if (c === 'cls' || c === 'clear') return clear();
+  if (c === 'hostname') return out(d.name);
+  if (c === 'ping') {
+    let n = 4; const t = [];
+    for (let k = 0; k < args.length; k++) { if (args[k] === '-n') n = Math.max(1, Math.min(20, parseInt(args[++k]) || 4)); else t.push(args[k]); }
+    if (!t[0]) return out('Uso: ping <IP o nombre> [-n cantidad]', 'warn');
+    return ping(d, t[0], n, out);
+  }
+  if (c === 'tracert' || c === 'traceroute') { if (!args[0]) return out('Uso: tracert <IP o nombre>', 'warn'); return tracert(d, args[0], out); }
+  if (c === 'arp' || low === 'show arp') {
+    if (args[0] === '-d') { rt(d).arp = {}; refreshTables(d); return out('Tabla ARP vaciada.', 'ok'); }
+    return arpPrint(d, out);
+  }
+  if (c === 'route' || low === 'show ip route') return routePrint(d, out);
+  if (c === 'ipconfig' || c === 'ifconfig' || low === 'show ip interface brief') {
+    if (!isR && args[0] && args[0].toLowerCase() === '/renew') { await dhcpRenew(d, out); return; }
+    if (!isR && args[0] && args[0].toLowerCase() === '/release') {
+      if (!d.dhcp) return out('Este equipo tiene IP estática: no hay nada que liberar.', 'warn');
+      d.ifaces[0].ip = ''; d.gw = ''; d.dns = ''; render(); propsSoft(d); save(); return out('IP liberada. Usa ipconfig /renew para pedir otra.', 'ok');
+    }
+    return ipconfigPrint(d, args[0] && args[0].toLowerCase() === '/all', out);
+  }
+  if (c === 'nslookup' && !isR) {
+    if (!args[0]) return out('Uso: nslookup <nombre>', 'warn');
+    const r = await dnsResolve(d, args[0]);
+    out(`Servidor:  ${d.dns || '(ninguno)'}`);
+    if (r.err) return out(r.err, 'err');
+    return out(`Nombre:    ${args[0]}\nDirección: ${r.ip}`, 'ok');
+  }
+  if ((c === 'curl' || c === 'wget') && !isR) {
+    if (!args[0]) return out('Uso: curl <dirección>', 'warn');
+    try { const r = await httpGet(d, args[0], m => out(m, 'dim')); out(r.html); } catch (e) { out(e.message, 'err'); }
+    return;
+  }
+  out(`"${a[0]}" no se reconoce como un comando. Escribe ayuda para ver la lista.`, 'err');
+}
+
+/* =========================================================
+   CAPTURA DE TRÁFICO
+   ========================================================= */
+let LOG = [], logN = 0, logSel = null;
+const filters = { ARP: true, ICMP: true, DHCP: true, DNS: true, TCP: true, HTTP: true };
+function protoOf(f) {
+  if (f.type === 'ARP') return 'ARP';
+  const p = f.payload;
+  if (p.proto === 'ICMP') return 'ICMP';
+  if (p.proto === 'UDP') return p.dhcp ? 'DHCP' : (p.dnsq || p.dnsr) ? 'DNS' : 'UDP';
+  if (p.proto === 'TCP') return p.data && p.data.http ? 'HTTP' : 'TCP';
+  return 'IP';
+}
+function icmpName(c) { return ({ 8: 'Solicitud de eco (ping)', 0: 'Respuesta de eco', 11: 'Tiempo excedido', 3: 'Destino inalcanzable' })[c.type] || 'ICMP'; }
+function infoOf(f) {
+  const p = f.payload;
+  if (f.type === 'ARP') return p.op === 1 ? `¿Quién tiene ${p.tpa}? Que responda a ${p.spa || '0.0.0.0'}` : `${p.spa} está en ${p.sha}`;
+  if (p.proto === 'ICMP') { const c = p.icmp; return `${p.src} → ${p.dst}  ${icmpName(c)}${c.type === 8 || c.type === 0 ? ' seq=' + c.seq : ''}  TTL=${p.ttl}`; }
+  if (p.dhcp) { const m = p.dhcp; return `DHCP ${m.op}${m.yiaddr ? ' · ofrece ' + m.yiaddr : ''}${m.req ? ' · pide ' + m.req : ''}`; }
+  if (p.dnsq) return `Consulta: ¿IP de ${p.dnsq.q}?`;
+  if (p.dnsr) return p.dnsr.ip ? `Respuesta: ${p.dnsr.q} = ${p.dnsr.ip}` : `Respuesta: ${p.dnsr.q} no existe`;
+  if (p.proto === 'TCP') { if (p.data && p.data.http) return `${p.src} → ${p.dst}  ${p.data.http.split('\n')[0]}`; return `${p.src}:${p.sport} → ${p.dst}:${p.dport} [${p.flags}]`; }
+  return '';
+}
+function explain(f) {
+  const p = f.payload;
+  if (f.type === 'ARP') return p.op === 1
+    ? `Petición ARP enviada en broadcast (a todos los equipos de la red local): «¿Quién tiene la IP ${p.tpa}?». Solo responde quien la tenga. Sin conocer la MAC no se puede enviar la trama.`
+    : `Respuesta ARP directa (unicast): «La IP ${p.spa} corresponde a la MAC ${p.sha}». El emisor la guarda en su tabla ARP para no tener que volver a preguntar.`;
+  if (p.proto === 'ICMP') {
+    const t = p.icmp.type;
+    if (t === 8) return 'El comando ping envía una solicitud de eco ICMP. Si llega a su destino, este contesta con una respuesta de eco.';
+    if (t === 0) return 'Respuesta de eco: el destino ha recibido el ping y contesta. El TTL indica cuántos saltos le quedaban al paquete.';
+    if (t === 11) return 'Un router descarta el paquete porque su TTL ha llegado a 0 y avisa al origen. El comando tracert aprovecha esto para descubrir cada router del camino.';
+    return `Mensaje de error ICMP: ${p.icmp.text}. Lo envía un equipo que no puede entregar el paquete.`;
+  }
+  if (p.dhcp) return ({
+    DISCOVER: 'El cliente todavía no tiene IP (origen 0.0.0.0) y pregunta a toda la red mediante broadcast: «¿Hay algún servidor DHCP?». Los routers no reenvían broadcasts.',
+    OFFER: 'El servidor DHCP ofrece al cliente una IP libre de su rango, junto con la máscara, la puerta de enlace y el DNS.',
+    REQUEST: 'El cliente acepta la oferta y la solicita formalmente, indicando qué servidor ha elegido.',
+    ACK: 'El servidor confirma la concesión. Desde este momento el cliente ya puede usar su configuración de red.',
+  })[p.dhcp.op];
+  if (p.dnsq) return `Consulta DNS (UDP, puerto 53): el equipo pregunta qué IP tiene el nombre ${p.dnsq.q}. Las personas usamos nombres; la red, direcciones IP.`;
+  if (p.dnsr) return p.dnsr.ip ? `El servidor DNS responde: ${p.dnsr.q} tiene la IP ${p.dnsr.ip}.` : `El servidor DNS no tiene ningún registro con el nombre ${p.dnsr.q}.`;
+  if (p.proto === 'TCP') {
+    if (p.data && p.data.http) return p.data.html ? 'El servidor envía la página web solicitada dentro de la respuesta HTTP 200 OK.' : 'El navegador pide la página web al servidor (HTTP, puerto 80) usando la conexión TCP ya abierta.';
+    return ({
+      'SYN': 'Paso 1 del saludo en tres pasos de TCP: el cliente pide abrir una conexión con el servidor.',
+      'SYN,ACK': 'Paso 2: el servidor acepta la conexión y confirma que ha recibido el SYN.',
+      'ACK': 'Paso 3: el cliente confirma. La conexión TCP queda establecida y ya se pueden enviar datos.',
+      'FIN,ACK': 'Cierre ordenado de la conexión TCP.',
+      'RST,ACK': 'El servidor rechaza la conexión: no hay ningún programa escuchando en ese puerto.',
+    })[p.flags] || 'Segmento TCP.';
+  }
+  return '';
+}
+function portName(n) { return ({ 67: '67 (servidor DHCP)', 68: '68 (cliente DHCP)', 53: '53 (DNS)', 80: '80 (HTTP)' })[n] || n + ' (puerto efímero)'; }
+function logFrame(a, b, f) {
+  const e = { n: ++logN, t: (performance.now() - T0) / 1000, from: a.name, to: b.name, proto: protoOf(f), info: infoOf(f), f };
+  LOG.push(e); if (LOG.length > 1000) LOG.shift();
+  if (passes(e)) appendRow(e, true);
+}
+const passes = e => filters[e.proto] !== false;
+function appendRow(e, live) {
+  const tb = $('#logBody'), box = tb.closest('.cap-table');
+  const nearBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  const tr = document.createElement('tr'); tr.dataset.n = e.n;
+  tr.innerHTML = `<td>${e.n}</td><td>${e.t.toFixed(2)}</td><td>${esc(e.from)}</td><td>${esc(e.to)}</td><td><span class="ptag" style="background:${PCOL[e.proto] || '#667'}">${e.proto}</span></td><td class="inf">${esc(e.info)}</td>`;
+  tb.appendChild(tr);
+  while (tb.children.length > 1000) tb.firstChild.remove();
+  if (live && nearBottom) box.scrollTop = box.scrollHeight;
+}
+function rebuildLog() { $('#logBody').innerHTML = ''; LOG.filter(passes).forEach(e => appendRow(e, false)); }
+function detailHtml(e) {
+  const f = e.f, p = f.payload;
+  const kv = o => '<dl>' + Object.entries(o).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('') + '</dl>';
+  const layer = (n, t, o) => `<div class="layer"><h4><span>${t}</span><em>${n}</em></h4>${kv(o)}</div>`;
+  let h = `<div class="explain"><b>${esc(e.from)} → ${esc(e.to)}</b><br>${esc(explain(f))}</div>`;
+  h += layer('Capa 2 · enlace', 'Ethernet', { 'MAC origen': f.src, 'MAC destino': f.dst + (f.dst === BMAC ? '  (broadcast: a todos)' : ''), 'Contiene': f.type === 'ARP' ? 'ARP' : 'IPv4' });
+  if (f.type === 'ARP') return h + layer('Capa 2–3', 'ARP', { 'Operación': p.op === 1 ? 'Petición (1)' : 'Respuesta (2)', 'MAC emisor': p.sha, 'IP emisor': p.spa, 'MAC buscada': p.op === 1 ? '¿? (00:00:00:00:00:00)' : p.tha, 'IP buscada': p.tpa });
+  h += layer('Capa 3 · red', 'IPv4', { 'IP origen': p.src, 'IP destino': p.dst + (p.dst === '255.255.255.255' ? '  (broadcast)' : ''), 'TTL': p.ttl, 'Protocolo': { ICMP: 'ICMP (1)', TCP: 'TCP (6)', UDP: 'UDP (17)' }[p.proto] });
+  if (p.proto === 'ICMP') { const o = { 'Tipo': `${p.icmp.type} · ${icmpName(p.icmp)}` }; if (p.icmp.id !== undefined) { o['Identificador'] = p.icmp.id; o['Nº de secuencia'] = p.icmp.seq; } if (p.icmp.text) o['Motivo'] = p.icmp.text; h += layer('Capa 3 · control', 'ICMP', o); }
+  if (p.proto === 'UDP') h += layer('Capa 4 · transporte', 'UDP', { 'Puerto origen': portName(p.sport), 'Puerto destino': portName(p.dport) });
+  if (p.proto === 'TCP') h += layer('Capa 4 · transporte', 'TCP', { 'Puerto origen': portName(p.sport), 'Puerto destino': portName(p.dport), 'Flags': p.flags });
+  if (p.dhcp) { const m = p.dhcp, o = { 'Mensaje': m.op, 'Id. transacción': hex(m.xid), 'MAC del cliente': m.chaddr }; if (m.yiaddr) Object.assign(o, { 'IP concedida': m.yiaddr, 'Máscara': m.mask, 'Puerta de enlace': m.gw || '—', 'DNS': m.dns || '—', 'Servidor': m.server }); if (m.req) Object.assign(o, { 'IP solicitada': m.req, 'Servidor elegido': m.server }); h += layer('Capa 7 · aplicación', 'DHCP', o); }
+  if (p.dnsq) h += layer('Capa 7 · aplicación', 'DNS', { 'Pregunta': p.dnsq.q + '  (registro A)' });
+  if (p.dnsr) h += layer('Capa 7 · aplicación', 'DNS', { 'Nombre': p.dnsr.q, 'Respuesta': p.dnsr.ip || 'NXDOMAIN (no existe)' });
+  if (p.data && p.data.http) { const o = { 'Mensaje': p.data.http }; if (p.data.html) o['Contenido'] = `${p.data.html.length} bytes de HTML`; h += layer('Capa 7 · aplicación', 'HTTP', o); }
+  return h;
+}
+
+/* =========================================================
+   ANIMACIÓN
+   ========================================================= */
+const anims = []; let raf = 0;
+function animatePacket(a, b, f, done) {
+  const proto = protoOf(f), g = el('g', { class: 'pkt' });
+  g.innerHTML = `<rect x="-17" y="-8" width="34" height="16" rx="4" fill="${PCOL[proto] || '#667'}"/><text y="3">${proto}</text>`;
+  $('#gPk').appendChild(g);
+  anims.push({ a, b, g, t0: performance.now(), dur: hopMs, done });
+  if (!raf) raf = requestAnimationFrame(tick);
+}
+function tick(t) {
+  for (let k = anims.length - 1; k >= 0; k--) {
+    const A = anims[k], u = Math.min(1, (t - A.t0) / A.dur), e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    A.g.setAttribute('transform', `translate(${A.a.x + (A.b.x - A.a.x) * e},${A.a.y + (A.b.y - A.a.y) * e})`);
+    if (u >= 1) { A.g.remove(); anims.splice(k, 1); A.done(); }
+  }
+  raf = anims.length ? requestAnimationFrame(tick) : 0;
+}
+function flashDrop(d) {
+  const g = el('g', { class: 'drop', transform: `translate(${d.x + 24},${d.y - 24})` });
+  g.innerHTML = '<circle r="9"/><path d="M-4 -4 4 4M4 -4-4 4"/>';
+  $('#gPk').appendChild(g); setTimeout(() => g.remove(), Math.max(500, hopMs));
+}
+
+/* =========================================================
+   DIBUJO DEL LIENZO
+   ========================================================= */
+function subLabel(d) {
+  if (d.type === 'switch' || d.type === 'hub' || d.type === 'router') return '';
+  const f = d.ifaces[0];
+  if (f.ip && maskLen(f.mask) !== null) return `${f.ip}/${maskLen(f.mask)}`;
+  return d.dhcp ? 'DHCP · sin IP' : 'sin IP';
+}
+function render() {
+  const gl = $('#gLinks'); gl.innerHTML = '';
+  for (const l of S.links) {
+    const A = dev(l.a), B = dev(l.b); if (!A || !B) continue;
+    const g = el('g', { 'data-link': l.id, class: 'link' });
+    g.appendChild(el('line', { x1: A.x, y1: A.y, x2: B.x, y2: B.y, class: 'wire' }));
+    g.appendChild(el('line', { x1: A.x, y1: A.y, x2: B.x, y2: B.y, class: 'hit' }));
+    const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len, off = Math.min(60, len * 0.32);
+    [[A, l.ai, 1], [B, l.bi, -1]].forEach(([D, i, s]) => {
+      const t = el('text', { x: D.x + ux * off * s, y: D.y + uy * off * s + 3, class: 'plabel' });
+      const f = D.ifaces[i];
+      t.innerHTML = esc(f.name) + (D.type === 'router' && f.ip ? `<tspan class="pip" x="${D.x + ux * off * s}" dy="12">${esc(f.ip)}</tspan>` : '');
+      g.appendChild(t);
+    });
+    gl.appendChild(g);
+  }
+  const gd = $('#gDevs'); gd.innerHTML = '';
+  for (const d of S.devices) {
+    const g = el('g', { 'data-dev': d.id, class: 'dev' + (sel === d.id ? ' sel' : '') + (cableA === d.id ? ' cabling' : ''), transform: `translate(${d.x},${d.y})` });
+    const sub = subLabel(d), wn = warnings(d).length;
+    g.innerHTML = `<rect class="halo" x="-40" y="-34" width="80" height="${sub ? 92 : 80}" rx="10"/>${ICON[d.type]}<text class="dname" y="39">${esc(d.name)}</text>${sub ? `<text class="dip" y="53">${esc(sub)}</text>` : ''}${wn ? `<g class="badge"><title>${wn} aviso(s): selecciónalo para verlos</title><circle cx="28" cy="-24" r="8"/><text x="28" y="-19.5">!</text></g>` : ''}`;
+    gd.appendChild(g);
+  }
+}
+
+/* ---------- Avisos de configuración ---------- */
+function warnings(d) {
+  const w = [];
+  if (d.type === 'switch' || d.type === 'hub') { if (!d.ifaces.some(f => f.link)) w.push('No tiene ningún cable conectado.'); return w; }
+  d.ifaces.forEach((f, i) => {
+    const tag = d.type === 'router' ? f.name + ': ' : '';
+    if (d.type !== 'router' && !f.link) w.push('No tiene el cable de red conectado.');
+    if (d.type === 'router' && f.link && !f.ip) w.push(tag + 'tiene cable pero no tiene IP.');
+    if (f.ip) {
+      if (ip2n(f.ip) === null) w.push(tag + 'la IP no es válida: deben ser cuatro números del 0 al 255 separados por puntos.');
+      else if (maskLen(f.mask) === null) w.push(tag + 'la máscara no es válida.');
+      else {
+        const l = maskLen(f.mask);
+        if (l < 31 && f.ip === netOf(f.ip, f.mask)) w.push(tag + `${f.ip} es la dirección de red y no se puede asignar a un equipo.`);
+        if (l < 31 && f.ip === bcastOf(f.ip, f.mask)) w.push(tag + `${f.ip} es la dirección de broadcast y no se puede asignar a un equipo.`);
+      }
+      const dup = S.devices.find(o => o.ifaces.some(g => g !== f && g.ip === f.ip));
+      if (dup) w.push(tag + `la IP ${f.ip} está repetida (también la tiene ${dup.name}).`);
+    } else if (d.type !== 'router' && !d.dhcp) w.push('No tiene dirección IP.');
+  });
+  if (d.type === 'router') {
+    for (let i = 0; i < d.ifaces.length; i++) for (let j = i + 1; j < d.ifaces.length; j++) {
+      const a = d.ifaces[i], b = d.ifaces[j];
+      if (a.ip && b.ip && maskLen(a.mask) !== null && sameNet(a.ip, b.ip, a.mask)) w.push(`${a.name} y ${b.name} están en la misma red: cada interfaz del router debe estar en una red distinta.`);
+    }
+  } else if (d.gw) {
+    const f = d.ifaces[0];
+    if (ip2n(d.gw) === null) w.push('La puerta de enlace no es una IP válida.');
+    else if (f.ip && ip2n(f.ip) !== null && maskLen(f.mask) !== null && !sameNet(d.gw, f.ip, f.mask)) w.push('La puerta de enlace no está en la misma red que el equipo.');
+  }
+  return w;
+}
+
+/* =========================================================
+   PANEL DE PROPIEDADES
+   ========================================================= */
+const PP = $('#props');
+function maskHint(m) { const l = maskLen(m); if (l === null) return ''; const h = l >= 31 ? (l === 32 ? 1 : 2) : 2 ** (32 - l) - 2; return `/${l} · hasta ${h.toLocaleString('es')} equipos en la red`; }
+function field(label, path, val, ph, ro, hint) {
+  if (ro) ph = 'la asigna el servidor DHCP';
+  const bad = val && !validFor(path, val);
+  return `<label>${label}<input data-bind="${path}" value="${esc(val)}" placeholder="${esc(ph)}"${ro ? ' readonly' : ''} class="${bad ? 'bad' : ''}" spellcheck="false">${hint ? `<small>${hint}</small>` : ''}</label>`;
+}
+function tablesHtml(d) {
+  const r = rt(d);
+  if (d.type === 'switch') {
+    const ks = Object.keys(r.mac);
+    return `<h3>Tabla MAC del switch</h3>` + (ks.length
+      ? `<table class="tbl"><tr><th>MAC</th><th>Puerto</th><th>Equipo</th></tr>${ks.map(m => { const o = S.devices.find(x => x.ifaces.some(f => f.mac === m)); return `<tr><td>${m}</td><td>${d.ifaces[r.mac[m]].name}</td><td>${o ? esc(o.name) : ''}</td></tr>`; }).join('')}</table>`
+      : `<div class="empty">Vacía. El switch aprende en qué puerto está cada MAC al ver pasar tramas.</div>`)
+      + `<div class="row"><button class="btn sm" data-act="clearMac">Vaciar tabla MAC</button></div>`;
+  }
+  if (d.type === 'hub') return '';
+  const ks = Object.keys(r.arp);
+  return `<h3>Tabla ARP</h3>` + (ks.length
+    ? `<table class="tbl"><tr><th>IP</th><th>MAC</th>${d.type === 'router' ? '<th>Int.</th>' : ''}</tr>${ks.map(k => `<tr><td>${k}</td><td>${r.arp[k].mac}</td>${d.type === 'router' ? `<td>${d.ifaces[r.arp[k].i].name}</td>` : ''}</tr>`).join('')}</table>`
+    : `<div class="empty">Vacía. Se llena al comunicarse con otros equipos.</div>`)
+    + `<div class="row"><button class="btn sm" data-act="clearArp">Vaciar tabla ARP</button></div>`;
+}
+function refreshTables(d) { if (sel !== d.id) return; const b = $('#dynTables'); if (b) b.innerHTML = tablesHtml(d); }
+function propsSoft(d) { if (sel !== d.id) return; if (PP.contains(document.activeElement) && document.activeElement.matches('input,textarea,select')) { refreshTables(d); return; } renderProps(); }
+
+function renderProps() {
+  const d = sel && dev(sel);
+  if (!d) {
+    PP.innerHTML = `<h3 style="margin-top:0">Tu red</h3>
+      <div class="kv"><span>Dispositivos</span><code>${S.devices.length}</code></div>
+      <div class="kv"><span>Cables</span><code>${S.links.length}</code></div>
+      <div class="sec"><h3>Enunciado de la misión</h3>
+      <label>Aparece sobre el lienzo y se guarda con la red. Escribe aquí el ejercicio para tu alumnado.<textarea data-net="mission" placeholder="Ejemplo: conecta los dos PCs y consigue que se hagan ping.">${esc(S.mission)}</textarea></label></div>
+      <div class="sec"><h3>Primeros pasos</h3><ul class="tips">
+        <li>Elige un dispositivo a la izquierda y haz clic en el lienzo para colocarlo.</li>
+        <li>Usa la herramienta <b>Cable</b> para unir dos dispositivos.</li>
+        <li>Selecciona un equipo para darle IP, máscara y puerta de enlace.</li>
+        <li>Doble clic en un PC abre su consola: prueba <code>ping</code>.</li>
+        <li>Abajo verás cada paquete que viaja por la red.</li></ul></div>
+      <p class="muted" style="font-size:11.5px;margin-top:22px">LabRed · creado por Juan Luis Torralbo Muñoz</p>`;
+    return;
+  }
+  const T = TYPES[d.type], ws = warnings(d);
+  let h = `<div class="ph"><svg viewBox="-32 -28 64 54">${ICON[d.type]}</svg><div style="flex:1"><div class="tn">${T.label}</div><input data-bind="name" value="${esc(d.name)}" maxlength="16" aria-label="Nombre"></div></div>`;
+  if (ws.length) h += `<div class="warnbox">${ws.map(x => `<div>⚠ ${esc(x)}</div>`).join('')}</div>`;
+  if (d.type === 'pc' || d.type === 'server') h += hostPanel(d);
+  if (d.type === 'router') h += routerPanel(d);
+  if (d.type === 'switch' || d.type === 'hub') h += portsPanel(d);
+  h += `<div class="sec" id="dynTables">${tablesHtml(d)}</div>`;
+  h += `<div class="sec"><button class="btn" data-act="delete" style="color:var(--danger)">Eliminar ${esc(d.name)}</button></div>`;
+  PP.innerHTML = h;
+}
+function hostPanel(d) {
+  const f = d.ifaces[0], isPc = d.type === 'pc', ro = d.dhcp;
+  let h = `<div class="row">${isPc ? '<button class="btn pri" data-act="console">Consola</button><button class="btn pri" data-act="browser">Navegador</button>' : '<button class="btn pri" data-act="console">Consola</button>'}</div>`;
+  h += `<div class="sec"><h3>Configuración de red · ${f.name}</h3>`;
+  if (isPc) h += `<label>Forma de obtener la IP<select data-bind="dhcp" data-kind="bool"><option value="false"${!d.dhcp ? ' selected' : ''}>Manual (IP estática)</option><option value="true"${d.dhcp ? ' selected' : ''}>Automática (DHCP)</option></select></label>`;
+  h += field('Dirección IP', 'ifaces.0.ip', f.ip, '192.168.1.10', ro)
+     + field('Máscara de subred', 'ifaces.0.mask', f.mask, '255.255.255.0 o /24', ro, maskHint(f.mask))
+     + field('Puerta de enlace', 'gw', d.gw, 'IP del router, p. ej. 192.168.1.1', ro)
+     + field('Servidor DNS', 'dns', d.dns, 'p. ej. 192.168.1.2', ro);
+  if (d.dhcp) h += `<div class="row"><button class="btn" data-act="renew">Pedir IP por DHCP</button><button class="btn" data-act="release">Liberar IP</button></div>`;
+  h += `<div class="kv"><span>MAC</span><code>${f.mac}</code></div>`;
+  const p = peerOf(d, 0); h += `<div class="kv"><span>Cable</span><code class="${p ? 'up' : 'down'}">${p ? '↔ ' + esc(p.d.name) + ' ' + esc(p.d.ifaces[p.i].name) : 'desconectado'}</code></div></div>`;
+  if (d.type === 'server') h += servicesPanel(d);
+  return h;
+}
+function servicesPanel(d) {
+  const s = d.svc, c = s.dhcp;
+  let h = `<div class="sec"><h3>Servicios del servidor</h3>`;
+  h += `<div class="svc"><label class="sw"><input type="checkbox" data-bind="svc.dhcp.on"${c.on ? ' checked' : ''}> Servidor DHCP</label>`;
+  if (c.on) h += `<div class="inner"><div class="two">${field('Primera IP', 'svc.dhcp.start', c.start, '192.168.1.100')}${field('Última IP', 'svc.dhcp.end', c.end, '192.168.1.150')}</div>${field('Máscara que entrega', 'svc.dhcp.mask', c.mask, '255.255.255.0')}<div class="two">${field('Puerta de enlace', 'svc.dhcp.gw', c.gw, '192.168.1.1')}${field('DNS', 'svc.dhcp.dns', c.dns, '192.168.1.2')}</div>
+    <small>Concesiones: ${Object.entries(rt(d).leases).map(([m, ip]) => { const o = S.devices.find(x => x.ifaces.some(f => f.mac === m)); return `${ip} → ${o ? esc(o.name) : m}`; }).join(', ') || 'ninguna todavía'}</small></div>`;
+  h += `</div><div class="svc"><label class="sw"><input type="checkbox" data-bind="svc.dns.on"${s.dns.on ? ' checked' : ''}> Servidor DNS</label>`;
+  if (s.dns.on) h += `<div class="inner">${s.dns.records.length ? `<table class="tbl"><tr><th>Nombre</th><th>IP</th><th></th></tr>${s.dns.records.map((r, i) => `<tr><td>${esc(r.name)}</td><td>${esc(r.ip)}</td><td><button class="btn x" data-act="delDns:${i}" title="Borrar">✕</button></td></tr>`).join('')}</table>` : '<div class="empty">Sin registros.</div>'}
+    <div class="three" style="grid-template-columns:1.4fr 1fr auto;margin-top:8px"><input id="dnsName" placeholder="www.ejemplo.es" spellcheck="false"><input id="dnsIp" placeholder="IP" spellcheck="false"><button class="btn sm" data-act="addDns">Añadir</button></div></div>`;
+  h += `</div><div class="svc"><label class="sw"><input type="checkbox" data-bind="svc.http.on"${s.http.on ? ' checked' : ''}> Servidor web (HTTP)</label>`;
+  if (s.http.on) h += `<div class="inner"><label>Página que entrega (HTML)<textarea data-bind="svc.http.html" spellcheck="false">${esc(s.http.html)}</textarea></label></div>`;
+  return h + '</div></div>';
+}
+function routerPanel(d) {
+  let h = `<div class="row"><button class="btn pri" data-act="console">Consola</button></div><div class="sec"><h3>Interfaces</h3>`;
+  d.ifaces.forEach((f, i) => {
+    const p = peerOf(d, i);
+    h += `<div class="iface"><div class="iface-h"><b>${f.name}</b><span class="${p ? 'up' : 'down'}">${p ? '↔ ' + esc(p.d.name) : 'sin cable'}</span></div><div class="two">${field('IP', `ifaces.${i}.ip`, f.ip, '192.168.' + (i + 1) + '.1')}${field('Máscara', `ifaces.${i}.mask`, f.mask, '/24')}</div></div>`;
+  });
+  h += `</div><div class="sec"><h3>Tabla de rutas</h3>`;
+  const rs = routesOf(d);
+  h += rs.length ? `<table class="tbl"><tr><th></th><th>Red destino</th><th>Por</th><th></th></tr>${rs.map(r => `<tr><td title="${r.type === 'C' ? 'Conectada' : 'Estática'}">${r.type}</td><td>${r.net}/${maskLen(r.mask)}</td><td${r.i < 0 ? ' style="color:var(--danger)" title="El siguiente salto no está en ninguna red conectada"' : ''}>${r.type === 'C' ? d.ifaces[r.i].name : esc(r.via)}</td><td>${r.type === 'S' ? `<button class="btn x" data-act="delRoute:${r.ri}" title="Borrar">✕</button>` : ''}</td></tr>`).join('')}</table>` : '<div class="empty">Vacía. Las redes conectadas aparecen al dar IP a una interfaz con cable.</div>';
+  h += `<small style="margin-top:8px">Añadir ruta estática: red destino, máscara y siguiente router.</small><div class="three" style="margin-top:4px"><input id="rNet" placeholder="192.168.3.0" spellcheck="false"><input id="rMask" placeholder="/24" spellcheck="false"><input id="rVia" placeholder="vía 10.0.0.2" spellcheck="false"><button class="btn sm" data-act="addRoute">+</button></div>
+    <small>Para una ruta por defecto usa red 0.0.0.0 y máscara /0.</small></div>`;
+  return h;
+}
+function portsPanel(d) {
+  const note = d.type === 'hub'
+    ? 'El hub es un repetidor: todo lo que entra por un puerto lo copia por todos los demás. No aprende nada.'
+    : 'El switch aprende qué MAC hay detrás de cada puerto y envía cada trama solo por el puerto necesario. Los broadcasts sí salen por todos.';
+  return `<p class="muted" style="font-size:12.5px">${note}</p><div class="sec"><h3>Puertos</h3><table class="tbl">${d.ifaces.map((f, i) => { const p = peerOf(d, i); return `<tr><td>${f.name}</td><td class="${p ? 'up' : 'down'}">${p ? '↔ ' + esc(p.d.name) : 'libre'}</td></tr>`; }).join('')}</table></div>`;
+}
+function setPath(o, path, v) { const k = path.split('.'); let x = o; for (let i = 0; i < k.length - 1; i++) x = x[k[i]]; x[k[k.length - 1]] = v; }
+
+PP.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.bind === 'name') { const d = dev(sel); if (d) { d.name = t.value.slice(0, 16) || d.name; render(); save(); updateWinTitles(d); } }
+  if (t.dataset.net === 'mission') { S.mission = t.value; renderMission(); save(); }
+});
+PP.addEventListener('change', e => {
+  const t = e.target, b = t.dataset.bind; if (!b || b === 'name') return;
+  const d = dev(sel); if (!d) return;
+  let v = t.type === 'checkbox' ? t.checked : t.value;
+  if (t.dataset.kind === 'bool') v = v === 'true';
+  if (typeof v === 'string' && b !== 'svc.http.html') v = v.trim();
+  if (/mask$/i.test(b) && v) { const m = normMask(v); if (m) v = m; }
+  setPath(d, b, v);
+  if (b !== 'svc.http.html') clearDynamic();
+  render(); save();
+  if (b !== 'svc.http.html') renderProps();
+  if (b === 'dhcp' && v) dhcpRenew(d, toastOut);
+  if (b === 'dhcp' && !v) renderProps();
+});
+PP.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input[data-bind]')) e.target.blur(); if (e.key === 'Enter' && e.target.matches('#rNet,#rMask,#rVia')) PP.querySelector('[data-act=addRoute]').click(); if (e.key === 'Enter' && e.target.matches('#dnsName,#dnsIp')) PP.querySelector('[data-act=addDns]').click(); });
+PP.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const d = dev(sel); if (!d) return;
+  const [act, arg] = b.dataset.act.split(':');
+  if (act === 'console') openConsole(d);
+  if (act === 'browser') openBrowser(d);
+  if (act === 'renew') dhcpRenew(d, toastOut);
+  if (act === 'release') { d.ifaces[0].ip = ''; d.gw = ''; d.dns = ''; render(); renderProps(); save(); }
+  if (act === 'clearMac') { rt(d).mac = {}; refreshTables(d); }
+  if (act === 'clearArp') { rt(d).arp = {}; refreshTables(d); }
+  if (act === 'delete') { deleteDevice(d); render(); renderProps(); save(); }
+  if (act === 'delRoute') { d.routes.splice(+arg, 1); clearDynamic(); renderProps(); save(); }
+  if (act === 'addRoute') {
+    const net = $('#rNet').value.trim(), mask = normMask($('#rMask').value || ''), via = $('#rVia').value.trim().replace(/^v[ií]a\s*/i, '');
+    if (ip2n(net) === null) return toast('La red destino no es una IP válida.', 'err');
+    if (!mask) return toast('La máscara no es válida (usa 255.255.255.0 o /24).', 'err');
+    if (ip2n(via) === null) return toast('El siguiente salto debe ser la IP de un router vecino.', 'err');
+    if (netOf(net, mask) !== net) toast(`Se ha corregido la red a ${netOf(net, mask)}.`);
+    d.routes.push({ net: netOf(net, mask), mask, via }); clearDynamic(); renderProps(); save();
+  }
+  if (act === 'addDns') {
+    const name = $('#dnsName').value.trim().toLowerCase(), ip = $('#dnsIp').value.trim();
+    if (!name) return toast('Escribe un nombre, por ejemplo www.ejemplo.es', 'err');
+    if (ip2n(ip) === null) return toast('La IP no es válida.', 'err');
+    d.svc.dns.records = d.svc.dns.records.filter(r => r.name !== name); d.svc.dns.records.push({ name, ip }); renderProps(); save();
+  }
+  if (act === 'delDns') { d.svc.dns.records.splice(+arg, 1); renderProps(); save(); }
+});
+const toastOut = (t, c) => { if (c === 'ok' || c === 'err') toast(t, c); };
+
+/* =========================================================
+   VENTANAS FLOTANTES
+   ========================================================= */
+const wins = {}; let zTop = 7000;
+function makeWin(key, cls) {
+  let w = wins[key]; if (w) { w.style.zIndex = ++zTop; return w; }
+  w = document.createElement('div'); w.className = 'win ' + cls; w.style.zIndex = ++zTop;
+  const n = Object.keys(wins).length % 6;
+  const st = $('.stagewrap').getBoundingClientRect(), ww = cls === 'browser' ? 680 : 580, wh = cls === 'browser' ? 470 : 350;
+  w.style.left = Math.max(10, st.right - ww - 56 - n * 28) + 'px'; w.style.top = Math.max(60, Math.min(innerHeight - wh - 10, st.bottom - wh - 12 - n * 28)) + 'px';
+  w.innerHTML = '<div class="win-bar"><span class="win-title"></span><button class="win-x" aria-label="Cerrar">✕</button></div><div class="win-body"></div>';
+  document.body.appendChild(w); wins[key] = w;
+  w.addEventListener('pointerdown', () => { w.style.zIndex = ++zTop; });
+  const bar = w.querySelector('.win-bar');
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.closest('.win-x')) return;
+    const r = w.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top;
+    bar.setPointerCapture(e.pointerId);
+    const mv = ev => { w.style.left = Math.max(0, Math.min(innerWidth - 100, ev.clientX - ox)) + 'px'; w.style.top = Math.max(0, Math.min(innerHeight - 40, ev.clientY - oy)) + 'px'; };
+    const up = () => { bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); };
+    bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up);
+  });
+  w.querySelector('.win-x').onclick = () => { w.remove(); delete wins[key]; };
+  return w;
+}
+function updateWinTitles(d) {
+  const c = wins['con-' + d.id]; if (c) { c.querySelector('.win-title').innerHTML = `Consola · <b>${esc(d.name)}</b>`; c.querySelector('.prompt').textContent = promptOf(d); }
+  const b = wins['web-' + d.id]; if (b) b.querySelector('.win-title').innerHTML = `Navegador · <b>${esc(d.name)}</b>`;
+}
+function openConsole(d) {
+  if (!['pc', 'server', 'router'].includes(d.type)) return;
+  const key = 'con-' + d.id, fresh = !wins[key], w = makeWin(key, 'term'); w.dataset.dev = d.id;
+  if (fresh) {
+    const body = w.querySelector('.win-body');
+    body.innerHTML = '<div class="term-out"></div><div class="term-in"><span class="prompt"></span><input spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Comando"></div>';
+    const outEl = body.querySelector('.term-out'), inp = body.querySelector('input');
+    const out = (t, c) => { const div = document.createElement('div'); if (c) div.className = 't-' + c; div.textContent = t; outEl.appendChild(div); outEl.scrollTop = outEl.scrollHeight; };
+    out(`LabRed · consola de ${d.name}\nEscribe ayuda para ver los comandos.\n`, 'dim');
+    const hist = []; let hi = 0;
+    inp.addEventListener('keydown', async e => {
+      if (e.key === 'ArrowUp') { if (hi > 0) inp.value = hist[--hi]; e.preventDefault(); return; }
+      if (e.key === 'ArrowDown') { if (hi < hist.length) { hi++; inp.value = hist[hi] || ''; } e.preventDefault(); return; }
+      if (e.key !== 'Enter') return;
+      const dd = dev(w.dataset.dev); if (!dd) return;
+      const line = inp.value; inp.value = '';
+      out(promptOf(dd) + line, 'cmd');
+      if (line.trim()) hist.push(line); hi = hist.length;
+      inp.disabled = true;
+      try { await runCmd(dd, line, out, () => { outEl.innerHTML = ''; }); } catch (err) { out('Error: ' + (err.message || err), 'err'); }
+      inp.disabled = false; inp.focus();
+    });
+    body.addEventListener('click', () => { if (!String(getSelection())) inp.focus(); });
+  }
+  updateWinTitles(d); const fi = w.querySelector('input'); fi.focus(); setTimeout(() => fi.focus(), 60);
+}
+function openBrowser(d) {
+  const key = 'web-' + d.id, fresh = !wins[key], w = makeWin(key, 'browser'); w.dataset.dev = d.id;
+  if (fresh) {
+    const body = w.querySelector('.win-body');
+    body.innerHTML = '<div class="bbar"><input value="http://" spellcheck="false" aria-label="Dirección"><button>Ir</button></div><div class="bstatus">Escribe una dirección (un nombre o una IP) y pulsa Ir.</div><iframe sandbox title="Página"></iframe>';
+    const inp = body.querySelector('input'), btn = body.querySelector('button'), st = body.querySelector('.bstatus'), fr = body.querySelector('iframe');
+    const go = async () => {
+      const dd = dev(w.dataset.dev); if (!dd) return;
+      btn.disabled = true; st.className = 'bstatus'; fr.srcdoc = '';
+      try {
+        const r = await httpGet(dd, inp.value, m => { st.textContent = m; });
+        st.textContent = `Página recibida de ${r.host}${r.host !== r.ip ? ' (' + r.ip + ')' : ''}.`; fr.srcdoc = r.html;
+      } catch (e) {
+        st.className = 'bstatus err'; st.textContent = 'No se puede acceder: ' + e.message;
+        fr.srcdoc = `<body style="font-family:system-ui;padding:30px;color:#445"><h2>No se puede acceder a este sitio</h2><p>${esc(e.message)}</p></body>`;
+      }
+      btn.disabled = false;
+    };
+    btn.onclick = go; inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+    setTimeout(() => { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }, 0);
+  }
+  updateWinTitles(d);
+}
+
+/* =========================================================
+   INTERACCIÓN CON EL LIENZO
+   ========================================================= */
+const svg = $('#svg');
+let VB = { x: 0, y: 0, w: 1200, h: 700 };
+function applyVB() { svg.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`); }
+function fitView() {
+  if (!S.devices.length) { VB = { x: 0, y: 0, w: 1200, h: 700 }; return applyVB(); }
+  const xs = S.devices.map(d => d.x), ys = S.devices.map(d => d.y);
+  let x0 = Math.min(...xs) - 90, x1 = Math.max(...xs) + 90, y0 = Math.min(...ys) - 80, y1 = Math.max(...ys) + 100;
+  if (S.mission.trim() && !$('#mission').classList.contains('min')) y0 -= 170;
+  let w = Math.max(x1 - x0, 900), h = Math.max(y1 - y0, 520);
+  VB = { x: (x0 + x1) / 2 - w / 2, y: (y0 + y1) / 2 - h / 2, w, h }; applyVB();
+}
+function zoomAt(f, cx, cy) {
+  const w = Math.min(4000, Math.max(300, VB.w * f)), k = w / VB.w;
+  VB = { x: cx - (cx - VB.x) * k, y: cy - (cy - VB.y) * k, w, h: VB.h * k }; applyVB();
+}
+svg.addEventListener('wheel', e => { e.preventDefault(); const p = svgPt(e); zoomAt(e.deltaY > 0 ? 1.12 : 1 / 1.12, p.x, p.y); }, { passive: false });
+$('#zIn').onclick = () => zoomAt(1 / 1.2, VB.x + VB.w / 2, VB.y + VB.h / 2);
+$('#zOut').onclick = () => zoomAt(1.2, VB.x + VB.w / 2, VB.y + VB.h / 2);
+$('#zFit').onclick = fitView;
+let pan = null;
+function svgPt(e) { const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY; return p.matrixTransform(svg.getScreenCTM().inverse()); }
+function select(d) { sel = d ? d.id : null; render(); renderProps(); }
+function setTool(t) {
+  tool = t; cableA = null; $('#gTemp').innerHTML = '';
+  document.querySelectorAll('.tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  const app = $('#app'); app.classList.remove('mode-cable', 'mode-delete', 'mode-place');
+  if (t === 'cable') app.classList.add('mode-cable'); if (t === 'delete') app.classList.add('mode-delete'); if (t.startsWith('place:')) app.classList.add('mode-place');
+  updateHint(); render();
+}
+function updateHint() {
+  const h = $('#hint'); let m = '';
+  if (tool === 'cable') m = cableA ? `Ahora haz clic en el dispositivo al que quieres conectar ${esc(dev(cableA)?.name)} · <kbd>Esc</kbd> cancela` : 'Haz clic en el primer dispositivo que quieres conectar';
+  if (tool === 'delete') m = 'Haz clic en un dispositivo o en un cable para eliminarlo';
+  if (tool.startsWith('place:')) m = `Haz clic en el lienzo para colocar: ${TYPES[tool.slice(6)].label} · <kbd>Esc</kbd> cancela`;
+  h.innerHTML = m; h.hidden = !m;
+}
+const freePort = d => d.ifaces.findIndex(f => !f.link);
+svg.addEventListener('pointerdown', e => {
+  const pt = svgPt(e), gd = e.target.closest('[data-dev]'), gl = e.target.closest('[data-link]');
+  const d = gd && dev(gd.dataset.dev);
+  if (tool.startsWith('place:')) {
+    const nd = newDevice(tool.slice(6), pt.x, pt.y);
+    setTool('select'); select(nd); save(); return;
+  }
+  if (tool === 'delete') {
+    if (d) { deleteDevice(d); } else if (gl) { const l = S.links.find(x => x.id === gl.dataset.link); if (l) removeLink(l); }
+    render(); renderProps(); save(); return;
+  }
+  if (tool === 'cable') {
+    if (!d) { cableA = null; $('#gTemp').innerHTML = ''; updateHint(); render(); return; }
+    if (!cableA) {
+      if (freePort(d) < 0) return toast(`${d.name} no tiene puertos libres.`, 'err');
+      cableA = d.id; updateHint(); render(); return;
+    }
+    const A = dev(cableA); cableA = null; $('#gTemp').innerHTML = '';
+    if (A && A !== d) {
+      const ai = freePort(A), bi = freePort(d);
+      if (bi < 0) toast(`${d.name} no tiene puertos libres.`, 'err');
+      else if (S.links.some(l => (l.a === A.id && l.b === d.id) || (l.a === d.id && l.b === A.id)) && (A.type !== 'router' || d.type !== 'router')) toast('Esos dos dispositivos ya están conectados.', 'err');
+      else { addLink(A, ai, d, bi); clearDynamic(); toast(`Cable: ${A.name} ${A.ifaces[ai].name} ↔ ${d.name} ${d.ifaces[bi].name}`); save(); }
+    }
+    updateHint(); render(); renderProps(); return;
+  }
+  if (d) {
+    const now = performance.now();
+    if (lastTap.id === d.id && now - lastTap.t < 420 && d.type !== 'switch' && d.type !== 'hub') { lastTap = {}; openConsole(d); return; }
+    lastTap = { id: d.id, t: now };
+    drag = { d, ox: pt.x - d.x, oy: pt.y - d.y, moved: false }; svg.setPointerCapture(e.pointerId); if (sel !== d.id) select(d);
+  }
+  else { select(null); pan = { cx: e.clientX, cy: e.clientY, x: VB.x, y: VB.y, k: VB.w / svg.clientWidth }; svg.setPointerCapture(e.pointerId); }
+});
+let lastTap = {};
+svg.addEventListener('pointermove', e => {
+  if (drag) {
+    const pt = svgPt(e);
+    drag.d.x = Math.round(pt.x - drag.ox); drag.d.y = Math.round(pt.y - drag.oy);
+    drag.moved = true; render();
+  } else if (pan) {
+    const k = Math.max(VB.w / svg.clientWidth, VB.h / svg.clientHeight);
+    VB.x = pan.x - (e.clientX - pan.cx) * k; VB.y = pan.y - (e.clientY - pan.cy) * k; applyVB(); $('#app').classList.add('panning');
+  } else if (tool === 'cable' && cableA) {
+    const A = dev(cableA), pt = svgPt(e);
+    if (A) $('#gTemp').innerHTML = `<line class="tempwire" x1="${A.x}" y1="${A.y}" x2="${pt.x}" y2="${pt.y}"/>`;
+  }
+});
+svg.addEventListener('pointerup', () => { if (drag && drag.moved) save(); drag = null; pan = null; $('#app').classList.remove('panning'); });
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,textarea,select')) return;
+  if (e.key === 'Escape') { setTool('select'); document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { const d = dev(sel); if (d) { deleteDevice(d); render(); renderProps(); save(); } e.preventDefault(); }
+});
+
+/* =========================================================
+   GUARDAR, CARGAR, COMPARTIR
+   ========================================================= */
+let saveT;
+function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem('labred-red', JSON.stringify(S)); } catch (e) { } }, 300); }
+function closeAllWins() { for (const k in wins) { wins[k].remove(); delete wins[k]; } }
+function loadNet(o) {
+  if (!o || !Array.isArray(o.devices)) throw new Error('formato');
+  S = { devices: o.devices, links: Array.isArray(o.links) ? o.links : [], seq: o.seq || 1, mission: o.mission || '' };
+  let max = 0;
+  S.devices.forEach(d => {
+    const T = TYPES[d.type]; if (!T) throw new Error('tipo');
+    d.ifaces = d.ifaces || []; d.routes = d.routes || []; d.gw = d.gw || ''; d.dns = d.dns || ''; d.dhcp = !!d.dhcp;
+    d.ifaces.forEach(f => { f.mac = f.mac || randMac(); f.ip = f.ip || ''; f.mask = f.mask || '255.255.255.0'; f.link = f.link || null; });
+    if (d.type === 'server') { const def = defaultSvc(); d.svc = d.svc || def; for (const k in def) d.svc[k] = Object.assign(def[k], d.svc[k] || {}); }
+    max = Math.max(max, parseInt(String(d.id).slice(1)) || 0);
+  });
+  S.links = S.links.filter(l => dev(l.a) && dev(l.b));
+  S.links.forEach(l => { max = Math.max(max, parseInt(String(l.id).slice(1)) || 0); });
+  S.seq = Math.max(S.seq, max + 1);
+  RT = {}; sel = null; cableA = null; closeAllWins();
+}
+function afterLoad() { fitView(); render(); renderProps(); renderMission(); save(); }
+function clearLog() { LOG = []; $('#logBody').innerHTML = ''; $('#detail').innerHTML = '<p class="muted">Haz clic en un paquete de la lista para ver sus capas: Ethernet, IP, transporte y aplicación.</p>'; }
+const b64enc = s => btoa(unescape(encodeURIComponent(s)));
+const b64dec = s => decodeURIComponent(escape(atob(s)));
+
+$('#bSave').onclick = () => {
+  const blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'red-labred.json'; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); toast('Red descargada como red-labred.json', 'ok');
+};
+$('#bOpen').onclick = () => $('#fileIn').click();
+$('#fileIn').onchange = e => {
+  const file = e.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = () => { try { loadNet(JSON.parse(r.result)); clearLog(); afterLoad(); toast('Red abierta.', 'ok'); } catch (err) { toast('Ese archivo no es una red de LabRed.', 'err'); } };
+  r.readAsText(file); e.target.value = '';
+};
+$('#bShare').onclick = async () => {
+  const url = location.href.split('#')[0] + '#red=' + b64enc(JSON.stringify(S));
+  try { await navigator.clipboard.writeText(url); toast('Enlace copiado. Quien lo abra verá esta red y su misión.', 'ok'); }
+  catch (e) { prompt('Copia este enlace:', url); }
+};
+$('#bNew').onclick = () => { if (S.devices.length && !confirm('¿Borrar la red actual y empezar de cero?')) return; loadNet(emptyNet()); clearLog(); afterLoad(); };
+$('#bReset').onclick = () => { clearDynamic(); for (const k in RT) RT[k].leases = {}; toast('Tablas ARP, MAC y concesiones DHCP vaciadas.', 'ok'); if (sel) renderProps(); };
+$('#bClearLog').onclick = clearLog;
+$('#speed').oninput = e => { hopMs = Math.round(1600 * Math.pow(120 / 1600, e.target.value / 100)); };
+$('#speed').oninput({ target: $('#speed') });
+
+/* ---------- Misión ---------- */
+function renderMission() { const m = $('#mission'); m.hidden = !S.mission.trim(); $('#mBody').textContent = S.mission; }
+$('#mToggle').onclick = () => { const m = $('#mission'); m.classList.toggle('min'); $('#mToggle').textContent = m.classList.contains('min') ? '+' : '—'; };
+
+/* ---------- Registro: filtros y detalle ---------- */
+$('#chips').innerHTML = Object.keys(filters).map(k => `<button class="chip on" data-p="${k}" style="--c:${PCOL[k]}">${k}</button>`).join('');
+$('#chips').onclick = e => { const b = e.target.closest('.chip'); if (!b) return; const k = b.dataset.p; filters[k] = !filters[k]; b.classList.toggle('on', filters[k]); rebuildLog(); };
+$('#logBody').onclick = e => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const en = LOG.find(x => x.n === +tr.dataset.n); if (!en) return;
+  document.querySelectorAll('#logBody tr.on').forEach(x => x.classList.remove('on')); tr.classList.add('on');
+  $('#detail').innerHTML = detailHtml(en);
+};
+$('#legend').innerHTML = Object.entries(PCOL).filter(([k]) => k !== 'UDP').map(([k, c]) => `<span class="ptag" style="background:${c}">${k}</span>`).join(' ');
+
+/* ---------- Paleta ---------- */
+$('#palette').innerHTML = `<div class="pal-t">Herramientas</div>
+  <button class="tool active" data-tool="select" title="Seleccionar y mover"><span class="gl">✥</span>Mover</button>
+  <button class="tool" data-tool="cable" title="Conectar con cable"><svg viewBox="0 0 40 34"><path d="M5 26C14 26 12 8 22 8s8 10 13 10" stroke="#f2b705" stroke-width="3.5" fill="none" stroke-linecap="round"/><rect x="1" y="22" width="8" height="8" rx="1.5" fill="#3d4c68"/><rect x="31" y="14" width="8" height="8" rx="1.5" fill="#3d4c68"/></svg>Cable</button>
+  <button class="tool" data-tool="delete" title="Eliminar"><span class="gl" style="color:var(--danger)">✕</span>Borrar</button>
+  <div class="pal-t">Dispositivos</div>` +
+  Object.entries(TYPES).map(([k, T]) => `<button class="tool" data-tool="place:${k}" title="Añadir ${T.label}"><svg viewBox="-32 -28 64 54">${ICON[k]}</svg>${T.label}</button>`).join('');
+$('#palette').onclick = e => { const b = e.target.closest('.tool'); if (b) setTool(tool === b.dataset.tool && b.dataset.tool !== 'select' ? 'select' : b.dataset.tool); };
+
+/* ---------- Modales ---------- */
+const openModal = id => $(id).classList.add('open');
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-close]')) m.classList.remove('open'); }));
+$('#bHelp').onclick = () => openModal('#mHelp');
+$('#bExamples').onclick = () => openModal('#mExamples');
+$('#bCalc').onclick = () => { openModal('#mCalc'); calc(); $('#cIp').focus(); };
+
+/* ---------- Calculadora IP ---------- */
+function calc() {
+  const ipS = $('#cIp').value.trim(), m = normMask($('#cMask').value), o = $('#cOut');
+  const ip = ip2n(ipS);
+  if (ip === null) { o.innerHTML = '<p class="muted">Escribe una IP válida, por ejemplo 192.168.1.77</p>'; return; }
+  if (!m) { o.innerHTML = '<p class="muted">Escribe una máscara válida: 255.255.255.192 o /26</p>'; return; }
+  const l = maskLen(m), M = ip2n(m), net = (ip & M) >>> 0, bc = (net | (~M >>> 0)) >>> 0;
+  const hosts = l >= 31 ? (l === 32 ? 1 : 2) : 2 ** (32 - l) - 2;
+  const first = l >= 31 ? net : net + 1, last = l >= 31 ? bc : bc - 1, o1 = ip >>> 24;
+  const cls = o1 < 128 ? 'A' : o1 < 192 ? 'B' : o1 < 224 ? 'C' : o1 < 240 ? 'D (multidifusión)' : 'E (experimental)';
+  const priv = o1 === 10 || (o1 === 172 && ((ip >>> 16) & 255) >= 16 && ((ip >>> 16) & 255) <= 31) || (o1 === 192 && ((ip >>> 16) & 255) === 168);
+  const kind = o1 === 127 ? 'Loopback (el propio equipo)' : priv ? 'Privada (uso en redes locales)' : 'Pública';
+  const bits = n => { let s = ''; for (let i = 31; i >= 0; i--) { s += `<span class="${31 - i < l ? 'nb' : 'hb'}">${(n >>> i) & 1}</span>`; if (i % 8 === 0 && i) s += '.'; } return s; };
+  let role = '';
+  if (l < 31 && ip === net) role = ' — es la dirección de red, no se puede usar en un equipo';
+  else if (l < 31 && ip === bc) role = ' — es la dirección de broadcast, no se puede usar en un equipo';
+  o.innerHTML = `<div class="bits">IP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${bits(ip)}<br>Máscara ${bits(M)}</div>
+   <p class="muted" style="font-size:12.5px;margin-top:-4px"><span class="nb">Bits de red (${l})</span> · <span class="hb">bits de equipo (${32 - l})</span></p>
+   <table>
+    <tr><td>Máscara</td><td>${m}  (/${l})</td></tr>
+    <tr><td>Dirección de red</td><td>${n2ip(net)}</td></tr>
+    <tr><td>Dirección de broadcast</td><td>${n2ip(bc)}</td></tr>
+    <tr><td>Primer equipo</td><td>${n2ip(first)}</td></tr>
+    <tr><td>Último equipo</td><td>${n2ip(last)}</td></tr>
+    <tr><td>Nº de equipos posibles</td><td>${hosts.toLocaleString('es')}  (2<sup>${32 - l}</sup>${l < 31 ? ' − 2' : ''})</td></tr>
+    <tr><td>Clase (histórica)</td><td>${cls}</td></tr>
+    <tr><td>Tipo de dirección</td><td>${kind}${esc(role)}</td></tr>
+   </table>`;
+}
+$('#cIp').oninput = calc; $('#cMask').oninput = calc;
+
+/* =========================================================
+   EJEMPLOS Y RETOS
+   ========================================================= */
+function mk(type, name, x, y, o = {}) {
+  const d = newDevice(type, x, y, name);
+  if (o.ip) { d.ifaces[0].ip = o.ip; d.ifaces[0].mask = o.mask || '255.255.255.0'; }
+  if (o.gw) d.gw = o.gw; if (o.dns) d.dns = o.dns; if (o.dhcp) d.dhcp = true; return d;
+}
+function rif(r, i, ip, mask = '255.255.255.0') { r.ifaces[i].ip = ip; r.ifaces[i].mask = mask; }
+function wire(a, b, ai, bi) { return addLink(a, ai ?? freePort(a), b, bi ?? freePort(b)); }
+const page = (title, color, body) => `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:system-ui,sans-serif;margin:0;background:#f6f8fc;color:#14213d}header{background:${color};color:#fff;padding:26px 30px}h1{margin:0;font-size:28px}main{padding:22px 30px;font-size:16.5px;max-width:640px}</style></head><body><header><h1>${title}</h1></header><main>${body}</main></body></html>`;
+
+const PRESETS = [
+  { t: 'LAN básica', lvl: 'Nivel 1', d: 'Tres PCs en un switch. Primer ping, ARP y la tabla MAC. Un cuarto PC espera su IP.', build() {
+    const sw = mk('switch', 'SW1', 600, 360);
+    const a = mk('pc', 'PC1', 360, 190, { ip: '192.168.1.10' }), b = mk('pc', 'PC2', 600, 160, { ip: '192.168.1.11' }), c = mk('pc', 'PC3', 840, 190, { ip: '192.168.1.12' }), e = mk('pc', 'PC4', 600, 560);
+    [a, b, c, e].forEach(x => wire(x, sw));
+    S.mission = '1. Haz doble clic en PC1 y escribe: ping 192.168.1.12\n2. Mira el tráfico: primero ARP (en broadcast) y después ICMP.\n3. Repite el ping. ¿Por qué ya no aparece ARP? Escribe arp -a y mira la tabla MAC de SW1.\n4. PC4 no tiene IP. Dale una de la misma red y comprueba que responde al ping.';
+  } },
+  { t: 'Hub contra switch', lvl: 'Nivel 1', d: 'Dos redes idénticas, una con hub y otra con switch. ¿Quién recibe cada trama?', build() {
+    const hub = mk('hub', 'HUB1', 330, 380), sw = mk('switch', 'SW1', 930, 380);
+    [['H1', 150, 220, '10.0.0.1'], ['H2', 330, 180, '10.0.0.2'], ['H3', 510, 220, '10.0.0.3'], ['H4', 330, 590, '10.0.0.4']].forEach(([n, x, y, ip]) => wire(mk('pc', n, x, y, { ip }), hub));
+    [['S1', 750, 220, '10.0.1.1'], ['S2', 930, 180, '10.0.1.2'], ['S3', 1110, 220, '10.0.1.3'], ['S4', 930, 590, '10.0.1.4']].forEach(([n, x, y, ip]) => wire(mk('pc', n, x, y, { ip }), sw));
+    S.mission = '1. Desde H1 haz ping 10.0.0.2 (-n 2 para ir más rápido).\n2. Desde S1 haz ping 10.0.1.2.\n3. Compara: en el hub, H3 y H4 reciben tramas que no son suyas y las descartan (✕). En el switch, ¿qué pasa en el segundo ping?\n4. ¿Qué dispositivo usarías en una red con 30 equipos? ¿Por qué?';
+  } },
+  { t: 'Dos redes y un router', lvl: 'Nivel 2 · reto', d: 'Un router une dos LAN. Hay un fallo escondido: encuéntralo y arréglalo.', build() {
+    const r = mk('router', 'R1', 640, 200); rif(r, 0, '192.168.1.1'); rif(r, 1, '192.168.2.1');
+    const s1 = mk('switch', 'SW1', 380, 400), s2 = mk('switch', 'SW2', 900, 400);
+    wire(r, s1, 0); wire(r, s2, 1);
+    wire(mk('pc', 'PC-A1', 250, 600, { ip: '192.168.1.10', gw: '192.168.1.1' }), s1);
+    wire(mk('pc', 'PC-A2', 510, 600, { ip: '192.168.1.11', gw: '192.168.1.1' }), s1);
+    wire(mk('pc', 'PC-B1', 770, 600, { ip: '192.168.2.10', gw: '192.168.2.1' }), s2);
+    wire(mk('pc', 'PC-B2', 1030, 600, { ip: '192.168.2.11' }), s2);
+    S.mission = 'PC-A1 consigue hacer ping a PC-B1, pero no a PC-B2.\n1. Compruébalo con ping desde PC-A1.\n2. Observa la captura: ¿llega la petición a PC-B2? ¿Sale la respuesta?\n3. Encuentra el fallo en la configuración de PC-B2 y corrígelo.\n4. Usa tracert 192.168.2.11 para ver el router en el camino.';
+  } },
+  { t: 'DHCP, DNS y web', lvl: 'Nivel 2', d: 'Los PCs piden IP por DHCP, traducen nombres con DNS y navegan por HTTP hasta otra red.', build() {
+    const sw = mk('switch', 'SW1', 470, 400);
+    const srv = mk('server', 'SRV1', 230, 230, { ip: '192.168.1.2', gw: '192.168.1.1', dns: '192.168.1.2' });
+    Object.assign(srv.svc.dhcp, { on: true, start: '192.168.1.100', end: '192.168.1.150', mask: '255.255.255.0', gw: '192.168.1.1', dns: '192.168.1.2' });
+    srv.svc.dns.on = true; srv.svc.dns.records = [{ name: 'www.instituto.es', ip: '192.168.1.2' }, { name: 'www.ejemplo.com', ip: '203.0.113.10' }];
+    srv.svc.http.on = true; srv.svc.http.html = page('Intranet del instituto', '#0d8f83', '<p>Bienvenida a la intranet. Esta página está en <b>SRV1</b>, dentro de tu propia red local.</p><p>Prueba ahora a visitar <b>www.ejemplo.com</b>: está en otra red, al otro lado del router.</p>');
+    const r = mk('router', 'R1', 780, 250); rif(r, 0, '192.168.1.1'); rif(r, 1, '203.0.113.1');
+    const web = mk('server', 'WEB', 1090, 250, { ip: '203.0.113.10', gw: '203.0.113.1' });
+    web.svc.http.on = true; web.svc.http.html = page('www.ejemplo.com', '#c2410c', '<p>Esta página ha salido de tu red local: ha pasado por el router R1.</p><p>Mira la captura: DNS → saludo TCP (SYN, SYN-ACK, ACK) → HTTP GET → HTTP 200 OK.</p>');
+    wire(srv, sw); wire(r, sw, 0); wire(r, web, 1);
+    wire(mk('pc', 'PC1', 350, 620, { dhcp: true }), sw); wire(mk('pc', 'PC2', 600, 620, { dhcp: true }), sw);
+    S.mission = '1. Abre la consola de PC1 y escribe: ipconfig /renew\n   Observa los 4 pasos: DISCOVER, OFFER, REQUEST y ACK.\n2. Escribe: nslookup www.instituto.es\n3. Abre el navegador de PC1 (panel derecho) y visita www.instituto.es y después www.ejemplo.com\n4. ¿Por qué el DHCP de SRV1 no puede dar IP a WEB?';
+  } },
+  { t: 'Rutas estáticas', lvl: 'Nivel 3', d: 'Tres routers en cadena. tracert, TTL y qué pasa cuando falta una ruta de vuelta.', build() {
+    const r1 = mk('router', 'R1', 380, 270), r2 = mk('router', 'R2', 700, 180), r3 = mk('router', 'R3', 1020, 270);
+    rif(r1, 0, '192.168.10.1'); rif(r1, 1, '10.0.12.1', '255.255.255.252');
+    rif(r2, 0, '10.0.12.2', '255.255.255.252'); rif(r2, 1, '10.0.23.1', '255.255.255.252');
+    rif(r3, 0, '10.0.23.2', '255.255.255.252'); rif(r3, 1, '192.168.30.1');
+    const a = mk('pc', 'PC-A', 170, 460, { ip: '192.168.10.10', gw: '192.168.10.1' }), c = mk('pc', 'PC-C', 1230, 460, { ip: '192.168.30.10', gw: '192.168.30.1' });
+    wire(a, r1, 0, 0); wire(r1, r2, 1, 0); wire(r2, r3, 1, 0); wire(r3, c, 1, 0);
+    r1.routes = [{ net: '192.168.30.0', mask: '255.255.255.0', via: '10.0.12.2' }, { net: '10.0.23.0', mask: '255.255.255.252', via: '10.0.12.2' }];
+    r2.routes = [{ net: '192.168.10.0', mask: '255.255.255.0', via: '10.0.12.1' }, { net: '192.168.30.0', mask: '255.255.255.0', via: '10.0.23.2' }];
+    r3.routes = [{ net: '192.168.10.0', mask: '255.255.255.0', via: '10.0.23.1' }, { net: '10.0.12.0', mask: '255.255.255.252', via: '10.0.23.1' }];
+    S.mission = '1. Desde PC-A: tracert 192.168.30.10. ¿Cuántos routers hay en el camino?\n2. En la captura, busca los mensajes «Tiempo excedido»: ¿qué TTL llevaba cada paquete?\n3. Borra en R3 la ruta hacia 192.168.10.0 y repite el ping. La petición llega a PC-C… ¿y la respuesta?\n4. Reto: cambia R1 y R3 para que usen una ruta por defecto (0.0.0.0 /0).';
+  } },
+  { t: 'El misterio de la máscara', lvl: 'Nivel 3 · reto', d: 'Dos PCs en el mismo switch que no se ven. La calculadora IP tiene la respuesta.', build() {
+    const sw = mk('switch', 'SW1', 600, 360);
+    wire(mk('pc', 'ANA', 360, 200, { ip: '192.168.5.20', mask: '255.255.255.192' }), sw);
+    wire(mk('pc', 'LUIS', 840, 200, { ip: '192.168.5.100', mask: '255.255.255.192' }), sw);
+    wire(mk('pc', 'EVA', 600, 580, { ip: '192.168.5.40', mask: '255.255.255.192' }), sw);
+    S.mission = 'ANA puede hablar con EVA, pero no con LUIS, aunque los tres están en el mismo switch.\n1. Prueba los pings desde ANA y lee el mensaje de error.\n2. Abre la Calculadora IP con la IP de ANA y la de LUIS con máscara /26. ¿Están en la misma red?\n3. Arréglalo de dos formas distintas: cambiando una IP o cambiando las máscaras.';
+  } },
+];
+function loadPreset(i) { loadNet(emptyNet()); PRESETS[i].build(); clearLog(); afterLoad(); $('#mission').classList.remove('min'); $('#mToggle').textContent = '—'; }
+$('#exGrid').innerHTML = PRESETS.map((p, i) => `<button class="ex" data-i="${i}"><i>${p.lvl}</i><b>${p.t}</b><span>${p.d}</span></button>`).join('')
+  + `<button class="ex" data-i="-1"><i>Libre</i><b>Red vacía</b><span>Lienzo en blanco para montar tu propia red o preparar un ejercicio.</span></button>`;
+$('#exGrid').onclick = e => {
+  const b = e.target.closest('.ex'); if (!b) return;
+  const i = +b.dataset.i; $('#mExamples').classList.remove('open');
+  if (i < 0) { loadNet(emptyNet()); clearLog(); afterLoad(); } else loadPreset(i);
+};
+
+/* ---------- Avisos breves ---------- */
+let toastT;
+function toast(msg, cls) {
+  let t = $('.toast'); if (!t) { t = document.createElement('div'); document.body.appendChild(t); }
+  t.className = 'toast ' + (cls || ''); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+/* ---------- Inicio ---------- */
+(function init() {
+  let loaded = false;
+  const m = location.hash.match(/^#red=(.+)$/);
+  if (m) {
+    try { loadNet(JSON.parse(b64dec(m[1]))); loaded = true; history.replaceState(null, '', location.pathname + location.search); setTimeout(() => toast('Red cargada desde el enlace.', 'ok'), 300); }
+    catch (e) { setTimeout(() => toast('El enlace no contiene una red válida.', 'err'), 300); }
+  }
+  if (!loaded) { try { const s = localStorage.getItem('labred-red'); if (s) { loadNet(JSON.parse(s)); loaded = true; } } catch (e) { } }
+  if (!loaded) { PRESETS[0].build(); }
+  afterLoad(); setTool('select');
+})();
+</script>
+</body>
+</html>

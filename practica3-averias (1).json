@@ -1,0 +1,327 @@
+{
+ "devices": [
+  {
+   "id": "d1",
+   "type": "switch",
+   "name": "SW1",
+   "x": 520,
+   "y": 360,
+   "ifaces": [
+    {
+     "name": "Fa0/1",
+     "mac": "00:1A:FB:11:8D:B8",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": "l5"
+    },
+    {
+     "name": "Fa0/2",
+     "mac": "00:1A:AD:98:5B:ED",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": "l6"
+    },
+    {
+     "name": "Fa0/3",
+     "mac": "00:1A:BA:FF:2C:FB",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": "l10"
+    },
+    {
+     "name": "Fa0/4",
+     "mac": "00:1A:50:34:9C:C4",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": "l12"
+    },
+    {
+     "name": "Fa0/5",
+     "mac": "00:1A:C3:91:35:6D",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": "l14"
+    },
+    {
+     "name": "Fa0/6",
+     "mac": "00:1A:7B:0C:18:28",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": null
+    },
+    {
+     "name": "Fa0/7",
+     "mac": "00:1A:89:28:F6:7E",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": null
+    },
+    {
+     "name": "Fa0/8",
+     "mac": "00:1A:D9:93:F3:39",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": null
+    }
+   ],
+   "gw": "",
+   "dns": "",
+   "dhcp": false,
+   "routes": [],
+   "svc": null
+  },
+  {
+   "id": "d2",
+   "type": "server",
+   "name": "DNS1",
+   "x": 270,
+   "y": 200,
+   "ifaces": [
+    {
+     "name": "eth0",
+     "mac": "00:1A:D7:58:91:FD",
+     "ip": "192.168.1.2",
+     "mask": "255.255.255.0",
+     "link": "l5"
+    }
+   ],
+   "gw": "192.168.1.1",
+   "dns": "",
+   "dhcp": false,
+   "routes": [],
+   "svc": {
+    "dhcp": {
+     "on": false,
+     "start": "192.168.1.100",
+     "end": "192.168.1.150",
+     "mask": "255.255.255.0",
+     "gw": "192.168.1.1",
+     "dns": ""
+    },
+    "dns": {
+     "on": true,
+     "records": [
+      {
+       "name": "www.ejemplo.com",
+       "ip": "203.0.113.10"
+      }
+     ]
+    },
+    "http": {
+     "on": false,
+     "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{font-family:system-ui,sans-serif;margin:0;background:#f3f7ff;color:#14213d}header{background:#1f5fd6;color:#fff;padding:26px 30px}h1{margin:0}main{padding:24px 30px;font-size:17px}</style></head><body><header><h1>Servidor web</h1></header><main><p>¡Funciona! Esta página ha viajado por la red usando HTTP.</p><p>Puedes cambiarla en el panel del servidor.</p></main></body></html>"
+    }
+   }
+  },
+  {
+   "id": "d3",
+   "type": "router",
+   "name": "R1",
+   "x": 770,
+   "y": 220,
+   "ifaces": [
+    {
+     "name": "Gi0/0",
+     "mac": "00:1A:DD:A6:A6:8B",
+     "ip": "192.168.1.1",
+     "mask": "255.255.255.0",
+     "link": "l6"
+    },
+    {
+     "name": "Gi0/1",
+     "mac": "00:1A:D1:B8:43:6A",
+     "ip": "203.0.113.1",
+     "mask": "255.255.255.0",
+     "link": "l7"
+    },
+    {
+     "name": "Gi0/2",
+     "mac": "00:1A:2B:7B:7D:11",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": null
+    },
+    {
+     "name": "Gi0/3",
+     "mac": "00:1A:B2:EE:93:8A",
+     "ip": "",
+     "mask": "255.255.255.0",
+     "link": null
+    }
+   ],
+   "gw": "",
+   "dns": "",
+   "dhcp": false,
+   "routes": [],
+   "svc": null
+  },
+  {
+   "id": "d4",
+   "type": "server",
+   "name": "WEB",
+   "x": 1030,
+   "y": 220,
+   "ifaces": [
+    {
+     "name": "eth0",
+     "mac": "00:1A:6F:B7:A4:CF",
+     "ip": "203.0.113.10",
+     "mask": "255.255.255.0",
+     "link": "l7"
+    }
+   ],
+   "gw": "203.0.113.1",
+   "dns": "",
+   "dhcp": false,
+   "routes": [],
+   "svc": {
+    "dhcp": {
+     "on": false,
+     "start": "192.168.1.100",
+     "end": "192.168.1.150",
+     "mask": "255.255.255.0",
+     "gw": "192.168.1.1",
+     "dns": ""
+    },
+    "dns": {
+     "on": false,
+     "records": []
+    },
+    "http": {
+     "on": true,
+     "html": "<!doctype html><html><head><meta charset=\"utf-8\"><style>body{font-family:system-ui,sans-serif;margin:0;background:#f6f8fc;color:#14213d}header{background:#c2410c;color:#fff;padding:26px 30px}h1{margin:0;font-size:28px}main{padding:22px 30px;font-size:16.5px;max-width:640px}</style></head><body><header><h1>www.ejemplo.com</h1></header><main><p>¡Enhorabuena! Este equipo ya navega correctamente.</p></main></body></html>"
+    }
+   }
+  },
+  {
+   "id": "d8",
+   "type": "pc",
+   "name": "PC-1",
+   "x": 230,
+   "y": 560,
+   "ifaces": [
+    {
+     "name": "eth0",
+     "mac": "00:1A:76:58:23:36",
+     "ip": "192.168.1.21",
+     "mask": "255.255.255.0",
+     "link": null
+    }
+   ],
+   "gw": "192.168.1.1",
+   "dns": "192.168.1.2",
+   "dhcp": false,
+   "routes": [],
+   "svc": null
+  },
+  {
+   "id": "d9",
+   "type": "pc",
+   "name": "PC-2",
+   "x": 430,
+   "y": 590,
+   "ifaces": [
+    {
+     "name": "eth0",
+     "mac": "00:1A:BE:59:B1:84",
+     "ip": "192.168.10.22",
+     "mask": "255.255.255.0",
+     "link": "l10"
+    }
+   ],
+   "gw": "192.168.1.1",
+   "dns": "192.168.1.2",
+   "dhcp": false,
+   "routes": [],
+   "svc": null
+  },
+  {
+   "id": "d11",
+   "type": "pc",
+   "name": "PC-3",
+   "x": 630,
+   "y": 590,
+   "ifaces": [
+    {
+     "name": "eth0",
+     "mac": "00:1A:F3:F2:69:47",
+     "ip": "192.168.1.23",
+     "mask": "255.255.255.0",
+     "link": "l12"
+    }
+   ],
+   "gw": "192.168.1.254",
+   "dns": "192.168.1.2",
+   "dhcp": false,
+   "routes": [],
+   "svc": null
+  },
+  {
+   "id": "d13",
+   "type": "pc",
+   "name": "PC-4",
+   "x": 830,
+   "y": 560,
+   "ifaces": [
+    {
+     "name": "eth0",
+     "mac": "00:1A:30:44:26:94",
+     "ip": "192.168.1.24",
+     "mask": "255.255.255.0",
+     "link": "l14"
+    }
+   ],
+   "gw": "192.168.1.1",
+   "dns": "",
+   "dhcp": false,
+   "routes": [],
+   "svc": null
+  }
+ ],
+ "links": [
+  {
+   "id": "l5",
+   "a": "d2",
+   "ai": 0,
+   "b": "d1",
+   "bi": 0
+  },
+  {
+   "id": "l6",
+   "a": "d3",
+   "ai": 0,
+   "b": "d1",
+   "bi": 1
+  },
+  {
+   "id": "l7",
+   "a": "d3",
+   "ai": 1,
+   "b": "d4",
+   "bi": 0
+  },
+  {
+   "id": "l10",
+   "a": "d9",
+   "ai": 0,
+   "b": "d1",
+   "bi": 2
+  },
+  {
+   "id": "l12",
+   "a": "d11",
+   "ai": 0,
+   "b": "d1",
+   "bi": 3
+  },
+  {
+   "id": "l14",
+   "a": "d13",
+   "ai": 0,
+   "b": "d1",
+   "bi": 4
+  }
+ ],
+ "seq": 15,
+ "mission": "Ninguno de los cuatro PCs consigue abrir www.ejemplo.com.\nDatos de la red: router 192.168.1.1 · DNS 192.168.1.2 · máscara 255.255.255.0\nDiagnostica cada PC usando solo la consola (ipconfig, ping, nslookup) y el navegador.\nNo selecciones los equipos hasta haber anotado la causa de cada avería."
+}
