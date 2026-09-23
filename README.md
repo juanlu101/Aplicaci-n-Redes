@@ -4,15 +4,6 @@ Creado por **Juan Luis Torralbo Muñoz**.
 
 Simulador de redes pensado para 1º de Bachillerato. Todo funciona en el navegador, en un único archivo `index.html`, sin servidor, sin instalar nada y sin conexión a Internet una vez cargado.
 
-## Publicarlo en GitHub Pages
-
-1. Crea un repositorio nuevo en GitHub (por ejemplo, `labred`).
-2. Sube `index.html` (y este README) a la raíz del repositorio.
-3. En el repositorio: **Settings → Pages → Source: Deploy from a branch**, rama `main`, carpeta `/ (root)`. Guarda.
-4. En uno o dos minutos estará en `https://TU-USUARIO.github.io/labred/`.
-
-También funciona abriendo `index.html` directamente con doble clic, o copiándolo a un pendrive.
-
 ## Qué se puede hacer
 
 - Montar redes con PC, servidores, switches, hubs y routers, y conectarlos con cables.
